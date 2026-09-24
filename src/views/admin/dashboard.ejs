@@ -1,7 +1,49 @@
 <%- include('../partials/head', { title }) %>
+  <%- include('_nav') %>
   <h1>Adminöversikt</h1>
   <p>Inloggad som <strong><%= user.email %></strong>.</p>
+
   <div class="card">
-    <p>Här kommer administration av material, dekorer, priser, återförsäljare och innehåll att byggas ut i kommande faser.</p>
+    <h2>Aktiva återförsäljare</h2>
+    <p style="font-size:2rem; margin:0"><%= activeCompanyCount %></p>
+  </div>
+
+  <div class="card">
+    <h2>Senaste inloggningar</h2>
+    <% if (recentLogins.length === 0) { %>
+      <p>Inga inloggningar registrerade ännu.</p>
+    <% } else { %>
+      <table class="admin-table">
+        <thead><tr><th scope="col">Användare</th><th scope="col">Företag</th><th scope="col">Tidpunkt</th></tr></thead>
+        <tbody>
+          <% recentLogins.forEach(l => { %>
+            <tr>
+              <td><%= l.user ? l.user.email : '–' %></td>
+              <td><%= l.user && l.user.company ? l.user.company.name : (l.user && l.user.role === 'ADMIN' ? 'Admin' : '–') %></td>
+              <td><%= l.createdAt.toISOString().slice(0, 16).replace('T', ' ') %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h2>Mest visade produkter</h2>
+    <% if (mostViewedWithNames.length === 0) { %>
+      <p>Ingen statistik ännu.</p>
+    <% } else { %>
+      <table class="admin-table">
+        <thead><tr><th scope="col">Dekor</th><th scope="col">Antal visningar</th></tr></thead>
+        <tbody>
+          <% mostViewedWithNames.forEach(v => { %>
+            <tr>
+              <td><%= v.decor ? (v.decor.articleCode + ' – ' + v.decor.name) : 'Okänd' %></td>
+              <td><%= v.count %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
   </div>
 <%- include('../partials/footer') %>

@@ -53,6 +53,10 @@ router.get('/sortiment/:articleCode', async (req, res, next) => {
       return res.status(404).render('error', { title: 'Hittades inte', message: 'Dekoren kunde inte hittas.' });
     }
 
+    await prisma.productView.create({
+      data: { decorId: decor.id, companyId: req.session.user.companyId, userId: req.session.user.id },
+    });
+
     const [priceList, settings, company, discountRules, netPriceOverrides] = await Promise.all([
       catalog.getCurrentPriceList(),
       catalog.getSettings(),

@@ -1,0 +1,37 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Loggar</h1>
+
+  <form method="get" action="/admin/loggar" class="card">
+    <label for="action">Filtrera på händelse</label>
+    <select id="action" name="action" onchange="this.form.submit()">
+      <option value="">Alla händelser</option>
+      <% actions.forEach(a => { %>
+        <option value="<%= a %>" <%= selectedAction === a ? 'selected' : '' %>><%= a %></option>
+      <% }) %>
+    </select>
+  </form>
+
+  <table class="admin-table">
+    <thead>
+      <tr><th scope="col">Tidpunkt</th><th scope="col">Användare</th><th scope="col">Händelse</th><th scope="col">Objekt</th><th scope="col">IP</th></tr>
+    </thead>
+    <tbody>
+      <% logs.forEach(l => { %>
+        <tr>
+          <td><%= l.createdAt.toISOString().slice(0, 19).replace('T', ' ') %></td>
+          <td><%= l.user ? l.user.email : '–' %></td>
+          <td><%= l.action %></td>
+          <td><%= l.entityType ? (l.entityType + (l.entityId ? ' #' + l.entityId : '')) : '–' %></td>
+          <td><%= l.ipAddress || '–' %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <nav aria-label="Sidnumrering">
+    <% if (page > 1) { %><a href="/admin/loggar?page=<%= page - 1 %>&action=<%= selectedAction %>">&larr; Föregående</a><% } %>
+    <span> Sida <%= page %> av <%= totalPages %> </span>
+    <% if (page < totalPages) { %><a href="/admin/loggar?page=<%= page + 1 %>&action=<%= selectedAction %>">Nästa &rarr;</a><% } %>
+  </nav>
+<%- include('../../partials/footer') %>
