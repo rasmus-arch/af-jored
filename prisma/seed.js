@@ -1,4 +1,10 @@
 /* eslint-disable no-console */
+// Måste sättas innan något gör async I/O (fil/nätverk/kryptooperationer),
+// annars hinner Node redan initiera sin trådpool med standardstorleken.
+// Håller nere antalet bakgrundstrådar - viktigt på delad hosting där
+// CloudLinux LVE räknar trådar mot kontots processgräns (NPROC/PNO).
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '2';
+
 const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 const argon2 = require('argon2');
@@ -28,33 +34,39 @@ async function main() {
   console.log('Hashar lösenord (kan ta några sekunder)...');
   const seedPasswordHash = await argon2.hash(SEED_PASSWORD);
 
+  // Körs som EN transaktion över EN databaskoppling istället för 25
+  // separata frågor - färre uppkopplingar/trådar att hantera samtidigt, och
+  // snabbare eftersom Prisma inte behöver checka ut en ny anslutning ur
+  // poolen för varje enskild rad.
   console.log('Rensar befintlig data...');
-  await prisma.productView.deleteMany();
-  await prisma.documentCompany.deleteMany();
-  await prisma.document.deleteMany();
-  await prisma.newsPost.deleteMany();
-  await prisma.netPriceOverride.deleteMany();
-  await prisma.discountRule.deleteMany();
-  await prisma.addOnPrice.deleteMany();
-  await prisma.edgeProfilePrice.deleteMany();
-  await prisma.countertopPriceRow.deleteMany();
-  await prisma.priceList.deleteMany();
-  await prisma.addOnMaterial.deleteMany();
-  await prisma.addOn.deleteMany();
-  await prisma.edgeProfileCompatibility.deleteMany();
-  await prisma.edgeProfile.deleteMany();
-  await prisma.decorThickness.deleteMany();
-  await prisma.decor.deleteMany();
-  await prisma.decorCategory.deleteMany();
-  await prisma.thickness.deleteMany();
-  await prisma.brand.deleteMany();
-  await prisma.material.deleteMany();
-  await prisma.invitation.deleteMany();
-  await prisma.passwordResetToken.deleteMany();
-  await prisma.auditLog.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.company.deleteMany();
-  await prisma.settings.deleteMany();
+  await prisma.$transaction([
+    prisma.productView.deleteMany(),
+    prisma.documentCompany.deleteMany(),
+    prisma.document.deleteMany(),
+    prisma.newsPost.deleteMany(),
+    prisma.netPriceOverride.deleteMany(),
+    prisma.discountRule.deleteMany(),
+    prisma.addOnPrice.deleteMany(),
+    prisma.edgeProfilePrice.deleteMany(),
+    prisma.countertopPriceRow.deleteMany(),
+    prisma.priceList.deleteMany(),
+    prisma.addOnMaterial.deleteMany(),
+    prisma.addOn.deleteMany(),
+    prisma.edgeProfileCompatibility.deleteMany(),
+    prisma.edgeProfile.deleteMany(),
+    prisma.decorThickness.deleteMany(),
+    prisma.decor.deleteMany(),
+    prisma.decorCategory.deleteMany(),
+    prisma.thickness.deleteMany(),
+    prisma.brand.deleteMany(),
+    prisma.material.deleteMany(),
+    prisma.invitation.deleteMany(),
+    prisma.passwordResetToken.deleteMany(),
+    prisma.auditLog.deleteMany(),
+    prisma.user.deleteMany(),
+    prisma.company.deleteMany(),
+    prisma.settings.deleteMany(),
+  ]);
 
   console.log('Skapar inställningar...');
   await prisma.settings.create({ data: { vatPercentage: '25.00' } });
