@@ -5,9 +5,13 @@
 //
 // Användning:
 //   node scripts/create-admin.js din@epost.se "DittLosenord123"
+// Måste sättas innan något gör async I/O - håller nere Node:s egen
+// bakgrundstrådpool på hårt begränsad delad hosting.
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '2';
+
 require('../src/config'); // löser DATABASE_URL (även från DB_HOST m.fl.)
 const { PrismaClient } = require('@prisma/client');
-const argon2 = require('argon2');
+const { hashPassword } = require('../src/lib/passwordHash');
 
 const prisma = new PrismaClient();
 
@@ -26,7 +30,7 @@ async function main() {
   }
 
   const normalizedEmail = email.toLowerCase().trim();
-  const passwordHash = await argon2.hash(password);
+  const passwordHash = await hashPassword(password);
 
   const user = await prisma.user.upsert({
     where: { email: normalizedEmail },

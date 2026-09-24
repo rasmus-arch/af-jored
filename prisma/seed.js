@@ -7,7 +7,7 @@ process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '2';
 
 const path = require('path');
 const { PrismaClient } = require('@prisma/client');
-const argon2 = require('argon2');
+const { hashPassword } = require('../src/lib/passwordHash');
 const { withLock } = require('../scripts/lib/lockfile');
 
 const prisma = new PrismaClient();
@@ -27,12 +27,13 @@ const watchdog = setTimeout(() => {
 watchdog.unref();
 
 async function main() {
-  // Argon2 är avsiktligt tungt (minne + flera trådar) för att stå emot
-  // brute-force. Alla seed-användare får samma lösenord, så vi hashar det
-  // bara en gång och återanvänder resultatet - annars blir seed onödigt
-  // resurskrävande (särskilt märkbart på begränsad delad hosting).
+  // Argon2 är avsiktligt tungt (minne + trådar) för att stå emot brute-
+  // force - src/lib/passwordHash.js begränsar den till en tråd (parallelism
+  // 1) för att undvika "Threading failure" på hårt begränsad delad hosting.
+  // Alla seed-användare får samma lösenord, så vi hashar det bara en gång
+  // och återanvänder resultatet.
   console.log('Hashar lösenord (kan ta några sekunder)...');
-  const seedPasswordHash = await argon2.hash(SEED_PASSWORD);
+  const seedPasswordHash = await hashPassword(SEED_PASSWORD);
 
   // Körs som EN transaktion över EN databaskoppling istället för 25
   // separata frågor - färre uppkopplingar/trådar att hantera samtidigt, och

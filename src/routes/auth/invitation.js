@@ -1,5 +1,5 @@
 const express = require('express');
-const argon2 = require('argon2');
+const { hashPassword } = require('../../lib/passwordHash');
 const prisma = require('../../lib/prisma');
 
 const router = express.Router();
@@ -54,7 +54,7 @@ router.post('/bjudits-in/:token', async (req, res, next) => {
       });
     }
 
-    const passwordHash = await argon2.hash(password);
+    const passwordHash = await hashPassword(password);
 
     await prisma.$transaction([
       prisma.user.upsert({

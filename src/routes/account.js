@@ -1,5 +1,5 @@
 const express = require('express');
-const argon2 = require('argon2');
+const { hashPassword, verifyPassword } = require('../lib/passwordHash');
 const prisma = require('../lib/prisma');
 const totp = require('../lib/totp');
 const { requireAuth } = require('../middleware/auth');
@@ -30,13 +30,13 @@ router.post('/losenord', async (req, res, next) => {
     const render = (error, success = false) =>
       res.render('account/index', { title: 'Mitt konto', user, passwordError: error, passwordSuccess: success });
 
-    const validCurrent = await argon2.verify(user.passwordHash, currentPassword || '').catch(() => false);
+    const validCurrent = await verifyPassword(user.passwordHash, currentPassword || '').catch(() => false);
     if (!validCurrent) return res.status(400).render('account/index', { title: 'Mitt konto', user, passwordError: 'Fel nuvarande lösenord.', passwordSuccess: false });
 
     if (!newPassword || newPassword.length < 10) return render('Det nya lösenordet måste vara minst 10 tecken.');
     if (newPassword !== newPasswordConfirm) return render('De nya lösenorden matchar inte.');
 
-    const passwordHash = await argon2.hash(newPassword);
+    const passwordHash = await hashPassword(newPassword);
     await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
     await prisma.auditLog.create({ data: { userId: user.id, action: 'PASSWORD_CHANGED', ipAddress: req.ip } });
 
@@ -101,7 +101,7 @@ router.post('/tva-stegsverifiering/inaktivera', async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.session.user.id } });
 
-    const validPassword = await argon2.verify(user.passwordHash, req.body.currentPassword || '').catch(() => false);
+    const validPassword = await verifyPassword(user.passwordHash, req.body.currentPassword || '').catch(() => false);
     if (!validPassword) {
       return res.status(400).render('account/index', {
         title: 'Mitt konto',

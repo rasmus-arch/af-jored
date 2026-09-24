@@ -1,5 +1,5 @@
 const express = require('express');
-const argon2 = require('argon2');
+const { hashPassword } = require('../../lib/passwordHash');
 const prisma = require('../../lib/prisma');
 const config = require('../../config');
 const { generateToken } = require('../../lib/tokens');
@@ -74,7 +74,7 @@ router.post('/aterstall-losenord/:token', async (req, res, next) => {
       });
     }
 
-    const passwordHash = await argon2.hash(password);
+    const passwordHash = await hashPassword(password);
     await prisma.$transaction([
       prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
       prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),

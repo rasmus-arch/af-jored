@@ -1,5 +1,5 @@
 const express = require('express');
-const argon2 = require('argon2');
+const { verifyPassword } = require('../../lib/passwordHash');
 const prisma = require('../../lib/prisma');
 const totp = require('../../lib/totp');
 const { loginLimiter } = require('../../middleware/rateLimit');
@@ -48,7 +48,7 @@ router.post('/logga-in', loginLimiter, async (req, res, next) => {
     // Kör alltid en hash-verifiering, även om användaren saknas, för att inte
     // läcka via svarstid vilka e-postadresser som finns registrerade.
     const passwordHash = user ? user.passwordHash : '$argon2id$v=19$m=65536,t=3,p=4$c2FsdHNhbHRzYWx0$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-    const valid = await argon2.verify(passwordHash, password).catch(() => false);
+    const valid = await verifyPassword(passwordHash, password).catch(() => false);
 
     if (!user || !user.active || !valid) {
       await prisma.auditLog.create({ data: { action: 'LOGIN_FAILED', ipAddress: req.ip, newValue: { email } } });
