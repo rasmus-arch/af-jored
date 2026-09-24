@@ -1,0 +1,16 @@
+<%- include('../partials/head', { title }) %>
+  <div class="form-container">
+    <h1>Skapa ditt lösenord</h1>
+    <p>Du har blivit inbjuden till Joreds återförsäljarportal å
+      <strong><%= invitation.company.name %></strong>s vägnar (<%= invitation.email %>).</p>
+    <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+    <form method="post" action="/bjudits-in/<%= invitation.token %>" novalidate>
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="password">Lösenord (minst 10 tecken)</label>
+      <input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required autofocus />
+      <label for="passwordConfirm">Bekräfta lösenord</label>
+      <input type="password" id="passwordConfirm" name="passwordConfirm" autocomplete="new-password" minlength="10" required />
+      <button type="submit">Skapa konto</button>
+    </form>
+  </div>
+<%- include('../partials/footer') %>

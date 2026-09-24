@@ -1,0 +1,15 @@
+<%- include('../partials/head', { title }) %>
+  <div class="form-container">
+    <h1>Aktivera tvåstegsverifiering</h1>
+    <p>Skanna QR-koden med en autentiseringsapp och ange sedan koden appen visar.</p>
+    <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+    <p><img src="<%= qrDataUrl %>" alt="QR-kod för att lägga till kontot i din autentiseringsapp" width="200" height="200" /></p>
+    <p>Kan du inte skanna koden? Ange denna nyckel manuellt: <code><%= secret %></code></p>
+    <form method="post" action="/konto/tva-stegsverifiering/installera" novalidate>
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="code">Verifieringskod</label>
+      <input type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" required autofocus />
+      <button type="submit">Aktivera</button>
+    </form>
+  </div>
+<%- include('../partials/footer') %>

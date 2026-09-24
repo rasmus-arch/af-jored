@@ -1,0 +1,41 @@
+<%- include('../partials/head', { title }) %>
+  <h1>Mitt konto</h1>
+  <p><%= user.email %> · <%= user.role === 'ADMIN' ? 'Administratör' : 'Återförsäljare' %></p>
+
+  <div class="card">
+    <h2>Byt lösenord</h2>
+    <% if (passwordError) { %><p class="error-message" role="alert"><%= passwordError %></p><% } %>
+    <% if (passwordSuccess) { %><p><%= 'Lösenordet är uppdaterat.' %></p><% } %>
+    <form method="post" action="/konto/losenord" novalidate>
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="currentPassword">Nuvarande lösenord</label>
+      <input type="password" id="currentPassword" name="currentPassword" autocomplete="current-password" required />
+      <label for="newPassword">Nytt lösenord (minst 10 tecken)</label>
+      <input type="password" id="newPassword" name="newPassword" autocomplete="new-password" minlength="10" required />
+      <label for="newPasswordConfirm">Bekräfta nytt lösenord</label>
+      <input type="password" id="newPasswordConfirm" name="newPasswordConfirm" autocomplete="new-password" minlength="10" required />
+      <button type="submit">Byt lösenord</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Tvåstegsverifiering</h2>
+    <% if (typeof totpError !== 'undefined' && totpError) { %><p class="error-message" role="alert"><%= totpError %></p><% } %>
+    <% if (user.totpEnabled) { %>
+      <p>Tvåstegsverifiering är aktiverad för ditt konto.</p>
+      <% if (user.role === 'ADMIN') { %>
+        <p class="decor-meta">Obligatoriskt för administratörer och kan inte stängas av.</p>
+      <% } else { %>
+        <form method="post" action="/konto/tva-stegsverifiering/inaktivera" novalidate>
+          <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+          <label for="currentPassword2">Bekräfta med ditt lösenord för att stänga av</label>
+          <input type="password" id="currentPassword2" name="currentPassword" autocomplete="current-password" required />
+          <button type="submit">Stäng av tvåstegsverifiering</button>
+        </form>
+      <% } %>
+    <% } else { %>
+      <p>Tvåstegsverifiering är inte aktiverad.</p>
+      <a class="button" href="/konto/tva-stegsverifiering/installera">Aktivera tvåstegsverifiering</a>
+    <% } %>
+  </div>
+<%- include('../partials/footer') %>

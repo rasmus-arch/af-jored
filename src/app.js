@@ -12,6 +12,7 @@ const { doubleCsrfProtection, exposeCsrfToken } = require('./middleware/csrf');
 
 const healthRoutes = require('./routes/health');
 const authRoutes = require('./routes/auth');
+const accountRoutes = require('./routes/account');
 const adminRoutes = require('./routes/admin');
 const resellerRoutes = require('./routes/reseller');
 
@@ -66,6 +67,7 @@ function createApp() {
   });
 
   app.use('/', authRoutes);
+  app.use('/konto', accountRoutes);
   app.use('/admin', adminRoutes);
   app.use('/portal', resellerRoutes);
 

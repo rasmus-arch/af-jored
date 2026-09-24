@@ -1,0 +1,15 @@
+<%- include('../partials/head', { title }) %>
+  <div class="form-container">
+    <h1>Tvåstegsverifiering</h1>
+    <p>Ange den sexsiffriga koden från din autentiseringsapp.</p>
+    <% if (error) { %>
+      <p class="error-message" role="alert"><%= error %></p>
+    <% } %>
+    <form method="post" action="/logga-in/verifiera" novalidate>
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="code">Verifieringskod</label>
+      <input type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" required autofocus />
+      <button type="submit">Logga in</button>
+    </form>
+  </div>
+<%- include('../partials/footer') %>
