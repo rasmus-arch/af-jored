@@ -91,6 +91,24 @@ Alla seedade användare har lösenordet som skrivs ut i terminalen när
 seed-scriptet körs (`ByteMigDirekt123!` i skriptet - byt gärna innan ni
 seedar en delad miljö).
 
+**Kör aldrig `npm run seed` flera gånger samtidigt** (t.ex. i en ny flik för
+att "det verkar hänga") - det startar en till process som konkurrerar om
+samma databastabeller och gör allt långsammare, vilket är extra kännbart på
+delad hosting med hårda processgränser. Scriptet skyddar sig själv mot detta
+med en låsfil (`.seed.lock`): ett andra försök avvisas direkt med ett
+tydligt felmeddelande istället för att starta ändå. Låt den första
+körningen bli klar (eller misslyckas) innan du försöker igen.
+
+### Skapa ett eget adminkonto
+
+Istället för att använda den delade `admin@joredspostformning.se` kan du
+skapa ett personligt adminkonto direkt i terminalen, utan att lösenordet
+behöver synas någon annanstans än där du kör kommandot:
+
+```bash
+npm run create-admin -- din@epost.se "DittLosenord123"
+```
+
 ## Miljövariabler (`.env`)
 
 Se `.env.example` för samtliga variabler: databasanslutning, sessionshemlighet,

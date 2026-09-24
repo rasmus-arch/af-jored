@@ -1,10 +1,24 @@
 /* eslint-disable no-console */
+const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 const argon2 = require('argon2');
+const { withLock } = require('../scripts/lib/lockfile');
 
 const prisma = new PrismaClient();
 
 const SEED_PASSWORD = 'ByteMigDirekt123!';
+const LOCK_PATH = path.join(__dirname, '..', '.seed.lock');
+
+// Om seed av någon anledning hänger (t.ex. tappad databasanslutning) ska
+// processen dö av sig själv istället för att ligga kvar och äta en
+// processplats på obestämd tid - se felet i chatten om hängda processer på
+// begränsad delad hosting.
+const MAX_RUNTIME_MS = 5 * 60 * 1000;
+const watchdog = setTimeout(() => {
+  console.error(`Seed tog längre än ${MAX_RUNTIME_MS / 1000} sekunder och avbryts. Kontrollera databasanslutningen.`);
+  process.exit(1);
+}, MAX_RUNTIME_MS);
+watchdog.unref();
 
 async function main() {
   // Argon2 är avsiktligt tungt (minne + flera trådar) för att stå emot
@@ -320,9 +334,9 @@ async function main() {
   console.log(`Alla seed-användare har lösenordet: ${SEED_PASSWORD}`);
 }
 
-main()
+withLock(LOCK_PATH, main)
   .catch((err) => {
-    console.error(err);
+    console.error(err.message || err);
     process.exitCode = 1;
   })
   .finally(async () => {
