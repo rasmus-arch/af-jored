@@ -142,6 +142,25 @@ mysql://anvandare:losenord@localhost:3306/databasnamn
 Kom ihåg att cPanel ofta prefixar databas- och användarnamn med kontots
 cPanel-användarnamn (t.ex. `cpanelanv_databasnamn`).
 
+**Alternativ, enklare väg:** istället för att sätta ihop `DATABASE_URL` för
+hand (lätt att göra fel på om lösenordet innehåller tecken som `@ : / # %`),
+kan du sätta separata miljövariabler under "Environment variables" i
+"Setup Node.js App":
+
+| Namn | Exempel |
+|---|---|
+| `DB_HOST` | `localhost` |
+| `DB_PORT` | `3306` |
+| `DB_USER` | `cpanelanv_dbuser` |
+| `DB_PASSWORD` | vilket lösenord som helst, inklusive specialtecken |
+| `DB_NAME` | `cpanelanv_databasnamn` |
+
+Appen bygger då själv ihop `DATABASE_URL` och kodar specialtecken i
+användarnamn/lösenord automatiskt (`src/lib/databaseUrl.js`). Lämna
+`DATABASE_URL` tomt/osatt när du använder dessa. `npm run seed` och alla
+`prisma:*`-kommandon kör automatiskt `npm run sync-env` först, som skriver
+in den ihopbyggda `DATABASE_URL` i `.env` så att Prisma CLI hittar den.
+
 ### Uppdatera en befintlig driftsättning
 
 ```bash

@@ -1,12 +1,22 @@
 require('dotenv').config();
 const path = require('path');
+const { resolveDatabaseUrl } = require('../lib/databaseUrl');
+
+// Om DATABASE_URL saknas byggs den ihop från DB_HOST/DB_PORT/DB_USER/
+// DB_PASSWORD/DB_NAME (med automatisk kodning av specialtecken). Sätts även
+// tillbaka på process.env så att @prisma/client (som läser DATABASE_URL
+// direkt) också hittar den.
+const databaseUrl = resolveDatabaseUrl(process.env);
+if (databaseUrl) {
+  process.env.DATABASE_URL = databaseUrl;
+}
 
 module.exports = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT, 10) || 3000,
   appBaseUrl: process.env.APP_BASE_URL || 'http://localhost:3000',
   sessionSecret: process.env.SESSION_SECRET || 'utveckling-osaker-hemlighet-byt-i-produktion',
-  databaseUrl: process.env.DATABASE_URL,
+  databaseUrl,
   smtp: {
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT, 10) || 587,
