@@ -7,9 +7,29 @@ async function getCurrentPriceList(asOf = new Date()) {
   });
 }
 
+// Inställningarna (moms, logga, accentfärg) läses numera på varje request
+// (bl.a. globalt i app.js för att kunna visa logga/accentfärg överallt), så
+// de cachas kort i minnet för att inte lägga en extra databasfråga på varje
+// enda sidvisning - särskilt viktigt på hosting med hårt begränsat antal
+// processer/anslutningar (se tidigare CloudLinux LVE-problem). Cachen
+// nollställs direkt när admin sparar inställningar.
+const SETTINGS_CACHE_MS = 30 * 1000;
+let settingsCache = null;
+let settingsCacheExpiresAt = 0;
+
 async function getSettings() {
+  if (settingsCache && Date.now() < settingsCacheExpiresAt) {
+    return settingsCache;
+  }
   const settings = await prisma.settings.findFirst();
-  return settings || { vatPercentage: '25.00' };
+  settingsCache = settings || { vatPercentage: '25.00' };
+  settingsCacheExpiresAt = Date.now() + SETTINGS_CACHE_MS;
+  return settingsCache;
+}
+
+function invalidateSettingsCache() {
+  settingsCache = null;
+  settingsCacheExpiresAt = 0;
 }
 
 async function listMaterials({ activeOnly = true } = {}) {
@@ -195,6 +215,7 @@ async function getAddOnPrice({ priceListId, addOnId, thicknessId }) {
 module.exports = {
   getCurrentPriceList,
   getSettings,
+  invalidateSettingsCache,
   listMaterials,
   listBrands,
   listCategories,

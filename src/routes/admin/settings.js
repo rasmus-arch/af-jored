@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require('../../lib/prisma');
 const { uploadImage, imagePublicUrl } = require('../../middleware/upload');
 const { verifyCsrfAfterUpload } = require('../../middleware/csrf');
+const { invalidateSettingsCache } = require('../../services/catalog');
 
 const router = express.Router();
 
@@ -49,6 +50,7 @@ router.post('/installningar', uploadImage.single('logo'), verifyCsrfAfterUpload,
         ...(req.file ? { logoUrl: imagePublicUrl(req.file.filename) } : {}),
       },
     });
+    invalidateSettingsCache();
 
     res.redirect('/admin/installningar');
   } catch (err) {
