@@ -6,18 +6,17 @@ const { verifyCsrfAfterUpload } = require('../../middleware/csrf');
 const router = express.Router();
 
 async function getFormOptions() {
-  const [materials, brands, categories] = await Promise.all([
+  const [materials, categories] = await Promise.all([
     prisma.material.findMany({ orderBy: { sortOrder: 'asc' }, include: { thicknesses: { orderBy: { valueMm: 'asc' } } } }),
-    prisma.brand.findMany({ orderBy: { name: 'asc' } }),
     prisma.decorCategory.findMany({ orderBy: { sortOrder: 'asc' } }),
   ]);
-  return { materials, brands, categories };
+  return { materials, categories };
 }
 
 router.get('/dekorer', async (req, res, next) => {
   try {
     const decors = await prisma.decor.findMany({
-      include: { material: true, brand: true, category: true },
+      include: { material: true, category: true },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
     res.render('admin/decors/list', { title: 'Dekorer', decors });
@@ -38,7 +37,6 @@ router.get('/dekorer/nytt', async (req, res, next) => {
 function parseDecorInput(body) {
   return {
     materialId: Number(body.materialId),
-    brandId: Number(body.brandId),
     categoryId: Number(body.categoryId),
     articleCode: (body.articleCode || '').trim(),
     name: (body.name || '').trim(),
@@ -56,10 +54,10 @@ router.post('/dekorer', uploadImage.single('image'), verifyCsrfAfterUpload, asyn
     const data = parseDecorInput(req.body);
     const thicknessIds = [].concat(req.body.thicknessIds || []).map(Number);
 
-    if (!data.articleCode || !data.name || !data.materialId || !data.brandId || !data.categoryId) {
+    if (!data.articleCode || !data.name || !data.materialId || !data.categoryId) {
       return res.status(400).render('admin/decors/form', {
         title: 'Ny dekor', decor: { ...data }, selectedThicknessIds: thicknessIds, ...options,
-        error: 'Artikelkod, namn, material, varumärke och kategori krävs.',
+        error: 'Artikelkod, namn, material och kategori krävs.',
       });
     }
 
@@ -110,10 +108,10 @@ router.post('/dekorer/:id', uploadImage.single('image'), verifyCsrfAfterUpload, 
     const data = parseDecorInput(req.body);
     const thicknessIds = [].concat(req.body.thicknessIds || []).map(Number);
 
-    if (!data.articleCode || !data.name || !data.materialId || !data.brandId || !data.categoryId) {
+    if (!data.articleCode || !data.name || !data.materialId || !data.categoryId) {
       return res.status(400).render('admin/decors/form', {
         title: `Redigera ${decor.name}`, decor: { ...decor, ...data }, selectedThicknessIds: thicknessIds, ...options,
-        error: 'Artikelkod, namn, material, varumärke och kategori krävs.',
+        error: 'Artikelkod, namn, material och kategori krävs.',
       });
     }
 

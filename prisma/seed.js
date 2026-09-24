@@ -47,6 +47,9 @@ async function main() {
     prisma.newsPost.deleteMany(),
     prisma.netPriceOverride.deleteMany(),
     prisma.discountRule.deleteMany(),
+    prisma.companyBrandAccess.deleteMany(),
+    prisma.productPrice.deleteMany(),
+    prisma.product.deleteMany(),
     prisma.addOnPrice.deleteMany(),
     prisma.edgeProfilePrice.deleteMany(),
     prisma.countertopPriceRow.deleteMany(),
@@ -91,11 +94,13 @@ async function main() {
     prisma.decorCategory.create({ data: { name: 'Mönster', sortOrder: 4 } }),
   ]);
 
+  // Varumärken gäller enbart fristående produkter (diskhoar, blandare,
+  // tillbehör) - dekorer/bänkskivor har inget varumärke.
   console.log('Skapar varumärken...');
-  const [brandNordisk, brandSkandinavisk, brandKompakt] = await Promise.all([
-    prisma.brand.create({ data: { name: 'Nordisk Ytskikt', active: true } }),
-    prisma.brand.create({ data: { name: 'Skandinavisk Laminat', active: true } }),
-    prisma.brand.create({ data: { name: 'Kompakt & Co', active: true } }),
+  const [brandStala, brandJoredSinks, brandDecoSteel] = await Promise.all([
+    prisma.brand.create({ data: { name: 'Stala', active: true } }),
+    prisma.brand.create({ data: { name: 'Jored Sinks', active: true } }),
+    prisma.brand.create({ data: { name: 'DecoSteel', active: true } }),
   ]);
 
   console.log('Skapar material, tjocklekar och dekorer...');
@@ -126,25 +131,25 @@ async function main() {
 
   const decorDefs = [
     // Laminat
-    { material: 'Laminat', brand: brandNordisk, category: catSten, articleCode: 'F800', name: 'Crystal Marble', surfaceTexture: 'ST9', maxLengthMm: 4080, status: 'AKTIV', thicknessesMm: [12, 30] },
-    { material: 'Laminat', brand: brandSkandinavisk, category: catTra, articleCode: 'F812', name: 'Nordic Oak', surfaceTexture: 'ST28', maxLengthMm: 4080, status: 'AKTIV', thicknessesMm: [12, 20] },
-    { material: 'Laminat', brand: brandSkandinavisk, category: catEnfargad, articleCode: 'U100', name: 'Ren Vit', surfaceTexture: 'MAT', maxLengthMm: 4080, status: 'AKTIV', thicknessesMm: [12, 20, 30] },
+    { material: 'Laminat', category: catSten, articleCode: 'F800', name: 'Crystal Marble', surfaceTexture: 'ST9', maxLengthMm: 4080, status: 'AKTIV', thicknessesMm: [12, 30] },
+    { material: 'Laminat', category: catTra, articleCode: 'F812', name: 'Nordic Oak', surfaceTexture: 'ST28', maxLengthMm: 4080, status: 'AKTIV', thicknessesMm: [12, 20] },
+    { material: 'Laminat', category: catEnfargad, articleCode: 'U100', name: 'Ren Vit', surfaceTexture: 'MAT', maxLengthMm: 4080, status: 'AKTIV', thicknessesMm: [12, 20, 30] },
     // Kompaktlaminat
-    { material: 'Kompaktlaminat', brand: brandKompakt, category: catSten, articleCode: 'K200', name: 'Basalt Grey', surfaceTexture: 'HG', maxLengthMm: 3660, status: 'AKTIV', thicknessesMm: [12, 20] },
-    { material: 'Kompaktlaminat', brand: brandKompakt, category: catEnfargad, articleCode: 'K210', name: 'Kolsvart', surfaceTexture: 'MAT', maxLengthMm: 3660, status: 'AKTIV', thicknessesMm: [12, 20, 30] },
-    { material: 'Kompaktlaminat', brand: brandNordisk, category: catTra, articleCode: 'K220', name: 'Valnöt Ceramic', surfaceTexture: 'ST9', maxLengthMm: 3660, status: 'UTGAENDE', thicknessesMm: [20] },
+    { material: 'Kompaktlaminat', category: catSten, articleCode: 'K200', name: 'Basalt Grey', surfaceTexture: 'HG', maxLengthMm: 3660, status: 'AKTIV', thicknessesMm: [12, 20] },
+    { material: 'Kompaktlaminat', category: catEnfargad, articleCode: 'K210', name: 'Kolsvart', surfaceTexture: 'MAT', maxLengthMm: 3660, status: 'AKTIV', thicknessesMm: [12, 20, 30] },
+    { material: 'Kompaktlaminat', category: catTra, articleCode: 'K220', name: 'Valnöt Ceramic', surfaceTexture: 'ST9', maxLengthMm: 3660, status: 'UTGAENDE', thicknessesMm: [20] },
     // Trä
-    { material: 'Trä', brand: brandNordisk, category: catTra, articleCode: 'T100', name: 'Ek Massiv', surfaceTexture: 'Oljad', maxLengthMm: 3200, status: 'AKTIV', thicknessesMm: [20, 30] },
-    { material: 'Trä', brand: brandNordisk, category: catTra, articleCode: 'T110', name: 'Björk Massiv', surfaceTexture: 'Lackad', maxLengthMm: 3200, status: 'AKTIV', thicknessesMm: [20, 30] },
-    { material: 'Trä', brand: brandSkandinavisk, category: catTra, articleCode: 'T120', name: 'Valnöt Massiv', surfaceTexture: 'Oljad', maxLengthMm: 3200, status: 'AKTIV', thicknessesMm: [30] },
+    { material: 'Trä', category: catTra, articleCode: 'T100', name: 'Ek Massiv', surfaceTexture: 'Oljad', maxLengthMm: 3200, status: 'AKTIV', thicknessesMm: [20, 30] },
+    { material: 'Trä', category: catTra, articleCode: 'T110', name: 'Björk Massiv', surfaceTexture: 'Lackad', maxLengthMm: 3200, status: 'AKTIV', thicknessesMm: [20, 30] },
+    { material: 'Trä', category: catTra, articleCode: 'T120', name: 'Valnöt Massiv', surfaceTexture: 'Oljad', maxLengthMm: 3200, status: 'AKTIV', thicknessesMm: [30] },
     // Corian
-    { material: 'Corian', brand: brandKompakt, category: catEnfargad, articleCode: 'C300', name: 'Glacier White', surfaceTexture: 'MAT', maxLengthMm: 3680, status: 'AKTIV', thicknessesMm: [12] },
-    { material: 'Corian', brand: brandKompakt, category: catSten, articleCode: 'C310', name: 'Grey Onyx', surfaceTexture: 'MAT', maxLengthMm: 3680, status: 'AKTIV', thicknessesMm: [12, 20] },
-    { material: 'Corian', brand: brandNordisk, category: catEnfargad, articleCode: 'C320', name: 'Deep Black', surfaceTexture: 'MAT', maxLengthMm: 3680, status: 'UTGATT', thicknessesMm: [12] },
+    { material: 'Corian', category: catEnfargad, articleCode: 'C300', name: 'Glacier White', surfaceTexture: 'MAT', maxLengthMm: 3680, status: 'AKTIV', thicknessesMm: [12] },
+    { material: 'Corian', category: catSten, articleCode: 'C310', name: 'Grey Onyx', surfaceTexture: 'MAT', maxLengthMm: 3680, status: 'AKTIV', thicknessesMm: [12, 20] },
+    { material: 'Corian', category: catEnfargad, articleCode: 'C320', name: 'Deep Black', surfaceTexture: 'MAT', maxLengthMm: 3680, status: 'UTGATT', thicknessesMm: [12] },
     // Greengridz
-    { material: 'Greengridz', brand: brandSkandinavisk, category: catMonster, articleCode: 'G400', name: 'Terrazzo Green', surfaceTexture: 'ST9', maxLengthMm: 3050, status: 'AKTIV', thicknessesMm: [12, 20] },
-    { material: 'Greengridz', brand: brandSkandinavisk, category: catEnfargad, articleCode: 'G410', name: 'Sand', surfaceTexture: 'MAT', maxLengthMm: 3050, status: 'AKTIV', thicknessesMm: [12, 20] },
-    { material: 'Greengridz', brand: brandKompakt, category: catMonster, articleCode: 'G420', name: 'Terrazzo Grey', surfaceTexture: 'ST9', maxLengthMm: 3050, status: 'AKTIV', thicknessesMm: [20] },
+    { material: 'Greengridz', category: catMonster, articleCode: 'G400', name: 'Terrazzo Green', surfaceTexture: 'ST9', maxLengthMm: 3050, status: 'AKTIV', thicknessesMm: [12, 20] },
+    { material: 'Greengridz', category: catEnfargad, articleCode: 'G410', name: 'Sand', surfaceTexture: 'MAT', maxLengthMm: 3050, status: 'AKTIV', thicknessesMm: [12, 20] },
+    { material: 'Greengridz', category: catMonster, articleCode: 'G420', name: 'Terrazzo Grey', surfaceTexture: 'ST9', maxLengthMm: 3050, status: 'AKTIV', thicknessesMm: [20] },
   ];
 
   const decors = {};
@@ -154,7 +159,6 @@ async function main() {
     const decor = await prisma.decor.create({
       data: {
         materialId: material.id,
-        brandId: def.brand.id,
         categoryId: def.category.id,
         articleCode: def.articleCode,
         name: def.name,
@@ -216,6 +220,31 @@ async function main() {
     }
   }
 
+  console.log('Skapar produkter (diskhoar, blandare, tillbehör)...');
+  const productDefs = [
+    { type: 'DISKHO', brand: brandStala, articleCode: 'STL-DH-100', name: 'Stala Enkelho 100', description: 'Rostfri enkelho i matt stål.' },
+    { type: 'DISKHO', brand: brandJoredSinks, articleCode: 'JS-DH-200', name: 'Jored Sinks Dubbelho 200', description: 'Rostfri dubbelho med avrinningsyta.' },
+    { type: 'BLANDARE', brand: brandStala, articleCode: 'STL-BL-10', name: 'Stala Köksblandare Solo', description: 'Enarms köksblandare, krom.' },
+    { type: 'BLANDARE', brand: brandDecoSteel, articleCode: 'DS-BL-20', name: 'DecoSteel Köksblandare Pro', description: 'Köksblandare med utdragbar pip, borstad stål.' },
+    { type: 'TILLBEHOR', brand: brandJoredSinks, articleCode: 'JS-TB-01', name: 'Jored Sinks Diskställ', description: 'Diskställ i rostfritt stål anpassat för dubbelho.' },
+    { type: 'TILLBEHOR', brand: brandDecoSteel, articleCode: 'DS-TB-02', name: 'DecoSteel Skärbräda', description: 'Skärbräda i massivt trä som passar ovanpå hon.' },
+  ];
+  const products = {};
+  for (let i = 0; i < productDefs.length; i++) {
+    const def = productDefs[i];
+    products[def.articleCode] = await prisma.product.create({
+      data: {
+        type: def.type,
+        brandId: def.brand.id,
+        articleCode: def.articleCode,
+        name: def.name,
+        description: def.description,
+        active: true,
+        sortOrder: i,
+      },
+    });
+  }
+
   console.log('Skapar prislista med prisrader...');
   const priceList = await prisma.priceList.create({
     data: { name: 'Prislista 2026', validFrom: new Date('2026-01-01') },
@@ -260,6 +289,18 @@ async function main() {
     await prisma.addOnPrice.create({ data: { priceListId: priceList.id, addOnId: addOn.id, price } });
   }
 
+  const productPrices = {
+    'STL-DH-100': '1495.00',
+    'JS-DH-200': '2295.00',
+    'STL-BL-10': '895.00',
+    'DS-BL-20': '1695.00',
+    'JS-TB-01': '295.00',
+    'DS-TB-02': '450.00',
+  };
+  for (const [articleCode, price] of Object.entries(productPrices)) {
+    await prisma.productPrice.create({ data: { priceListId: priceList.id, productId: products[articleCode].id, price } });
+  }
+
   console.log('Skapar återförsäljare, användare och rabattregler...');
   const companyA = await prisma.company.create({
     data: {
@@ -284,7 +325,6 @@ async function main() {
       contactName: 'Björn Berg',
       contactEmail: 'bjorn@koksmontoren.se',
       contactPhone: '0500-987 654',
-      baseDiscountPercent: '10.00',
       active: true,
     },
   });
@@ -317,20 +357,27 @@ async function main() {
     },
   });
 
-  // Company A: 25% på Laminat, 30% på Nordisk Ytskikt inom Laminat, 15% på Corian.
+  // Company A: 25% på Laminat, 15% på Corian, samt 20% på varumärket Stala.
   await prisma.discountRule.create({
     data: { companyId: companyA.id, materialId: materials.Laminat.id, discountPercent: '25.00' },
   });
   await prisma.discountRule.create({
-    data: { companyId: companyA.id, materialId: materials.Laminat.id, brandId: brandNordisk.id, discountPercent: '30.00' },
-  });
-  await prisma.discountRule.create({
     data: { companyId: companyA.id, materialId: materials.Corian.id, discountPercent: '15.00' },
   });
+  await prisma.discountRule.create({
+    data: { companyId: companyA.id, brandId: brandStala.id, discountPercent: '20.00' },
+  });
 
-  // Company B: grundrabatt 10% (satt på Company), plus 20% specifikt på Kompaktlaminat.
+  // Company B: 20% specifikt på Kompaktlaminat, plus 10% på DecoSteel. Ser
+  // inte Jored Sinks alls (varumärkessynlighet avstängd för den kunden).
   await prisma.discountRule.create({
     data: { companyId: companyB.id, materialId: materials.Kompaktlaminat.id, discountPercent: '20.00' },
+  });
+  await prisma.discountRule.create({
+    data: { companyId: companyB.id, brandId: brandDecoSteel.id, discountPercent: '10.00' },
+  });
+  await prisma.companyBrandAccess.create({
+    data: { companyId: companyB.id, brandId: brandJoredSinks.id, visible: false },
   });
 
   console.log('Skapar nyhet och exempeldokument...');

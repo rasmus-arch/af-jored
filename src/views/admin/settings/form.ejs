@@ -1,0 +1,29 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Inställningar</h1>
+  <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+
+  <form method="post" action="/admin/installningar" enctype="multipart/form-data" class="card">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+
+    <label for="vatPercentage">Momssats (%)</label>
+    <input type="text" id="vatPercentage" name="vatPercentage" value="<%= settings.vatPercentage %>" required />
+
+    <label for="accentColor">Accentfärg (hex, t.ex. #b08a3e)</label>
+    <input type="text" id="accentColor" name="accentColor" value="<%= settings.accentColor || '' %>" placeholder="#b08a3e" />
+
+    <label for="logo">Logotyp</label>
+    <% if (settings.logoUrl) { %>
+      <p>
+        <img src="<%= settings.logoUrl %>" alt="" style="max-height:3rem;display:block;margin-bottom:.5rem" />
+        <label>
+          <input type="checkbox" name="removeLogo" value="true" />
+          Ta bort nuvarande logotyp
+        </label>
+      </p>
+    <% } %>
+    <input type="file" id="logo" name="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+
+    <button type="submit">Spara</button>
+  </form>
+<%- include('../../partials/footer') %>

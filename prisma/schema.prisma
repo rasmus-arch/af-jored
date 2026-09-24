@@ -29,10 +29,6 @@ model Company {
   contactName         String?  @map("contact_name")
   contactEmail        String?  @map("contact_email")
   contactPhone        String?  @map("contact_phone")
-  // Grundrabatt utan giltighetsperiod i första versionen. Om giltighetstid
-  // behövs senare, migrera till en DiscountRule-rad med materialId/brandId = null
-  // och validFrom/validTo satta, och fasa ut detta fält.
-  baseDiscountPercent Decimal? @map("base_discount_percent") @db.Decimal(5, 2)
   active              Boolean  @default(true)
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
@@ -43,6 +39,7 @@ model Company {
   invitations       Invitation[]
   documentCompanies DocumentCompany[]
   productViews      ProductView[]
+  brandAccess       CompanyBrandAccess[]
 
   @@map("companies")
 }
@@ -174,8 +171,9 @@ model Brand {
   logoUrl String? @map("logo_url")
   active  Boolean @default(true)
 
-  decors        Decor[]
+  products      Product[]
   discountRules DiscountRule[]
+  companyAccess CompanyBrandAccess[]
 
   @@map("brands")
 }
@@ -183,7 +181,6 @@ model Brand {
 model Decor {
   id             Int         @id @default(autoincrement())
   materialId     Int         @map("material_id")
-  brandId        Int         @map("brand_id")
   categoryId     Int         @map("category_id")
   articleCode    String      @unique @map("article_code")
   name           String
@@ -197,7 +194,6 @@ model Decor {
   updatedAt      DateTime    @updatedAt @map("updated_at")
 
   material Material      @relation(fields: [materialId], references: [id])
-  brand    Brand         @relation(fields: [brandId], references: [id])
   category DecorCategory @relation(fields: [categoryId], references: [id])
 
   decorThicknesses  DecorThickness[]
@@ -205,7 +201,6 @@ model Decor {
   productViews      ProductView[]
 
   @@index([materialId])
-  @@index([brandId])
   @@map("decors")
 }
 
@@ -300,6 +295,71 @@ model AddOnMaterial {
 }
 
 // ---------------------------------------------------------------------------
+// Fristående produkter (diskho, blandare, tillbehör)
+// ---------------------------------------------------------------------------
+
+// Skiljer sig från AddOn (tillval/bearbetning): dessa är egna, fysiska
+// produkter knutna till ett varumärke - t.ex. själva diskhon, inte
+// bearbetningen ("urtag för diskho") som fortfarande är ett AddOn utan
+// varumärke.
+enum ProductType {
+  DISKHO
+  BLANDARE
+  TILLBEHOR
+}
+
+model Product {
+  id          Int         @id @default(autoincrement())
+  type        ProductType
+  brandId     Int         @map("brand_id")
+  articleCode String?     @unique @map("article_code")
+  name        String
+  description String?     @db.Text
+  imageUrl    String?     @map("image_url")
+  active      Boolean     @default(true)
+  sortOrder   Int         @default(0) @map("sort_order")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  brand  Brand          @relation(fields: [brandId], references: [id])
+  prices ProductPrice[]
+
+  @@index([brandId])
+  @@map("products")
+}
+
+// Alltid per styck (inga löpmeter-produkter i denna kategori).
+model ProductPrice {
+  id          Int      @id @default(autoincrement())
+  priceListId Int      @map("price_list_id")
+  productId   Int      @map("product_id")
+  price       Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  priceList PriceList @relation(fields: [priceListId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@unique([priceListId, productId])
+  @@map("product_prices")
+}
+
+// Styr om en återförsäljare överhuvudtaget ser produkter av ett visst
+// varumärke. Ingen rad = synligt (standard). En rad med visible=false
+// döljer varumärket för just den återförsäljaren.
+model CompanyBrandAccess {
+  id        Int     @id @default(autoincrement())
+  companyId Int     @map("company_id")
+  brandId   Int     @map("brand_id")
+  visible   Boolean @default(true)
+
+  company Company @relation(fields: [companyId], references: [id])
+  brand   Brand   @relation(fields: [brandId], references: [id])
+
+  @@unique([companyId, brandId])
+  @@map("company_brand_access")
+}
+
+// ---------------------------------------------------------------------------
 // Priser
 // ---------------------------------------------------------------------------
 
@@ -315,6 +375,7 @@ model PriceList {
   countertopRows    CountertopPriceRow[]
   edgeProfilePrices EdgeProfilePrice[]
   addOnPrices       AddOnPrice[]
+  productPrices     ProductPrice[]
 
   @@index([validFrom])
   @@map("price_lists")
@@ -374,7 +435,12 @@ model AddOnPrice {
 // Rabatter och inköpspris
 // ---------------------------------------------------------------------------
 
-// Mest specifika regel gäller: material+brand > brand > material > grundrabatt.
+// Används i två separata sammanhang, avgjort av vilka fält som är satta:
+// - Bänkskivor (dekor+material): materialId satt, brandId null - dekorer har
+//   inget varumärke, så bara materialregler kan matcha.
+// - Diskho/blandare/tillbehör (produkt+varumärke): brandId satt, materialId
+//   null - ersätter den gamla "grundrabatten" per återförsäljare.
+// Mest specifika regel gäller: material+brand > brand > material.
 // Ingen giltighetsperiod krävs i första versionen, men validFrom/validTo finns
 // redan med så att tidsbegränsade rabatter kan läggas till senare utan
 // schemaändring.
@@ -491,10 +557,12 @@ model ProductView {
   @@map("product_views")
 }
 
-// Global inställning (singleton, id = 1), t.ex. momssats.
+// Global inställning (singleton, id = 1): momssats, logotyp och accentfärg.
 model Settings {
   id            Int      @id @default(autoincrement())
   vatPercentage Decimal  @default(25.00) @map("vat_percentage") @db.Decimal(5, 2)
+  logoUrl       String?  @map("logo_url")
+  accentColor   String?  @map("accent_color") @db.VarChar(7)
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("settings")

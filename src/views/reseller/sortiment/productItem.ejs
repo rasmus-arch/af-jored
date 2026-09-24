@@ -1,0 +1,29 @@
+<%- include('../../partials/head', { title }) %>
+  <p><a href="/portal/sortiment">&larr; Sortiment</a></p>
+  <h1><%= product.name %></h1>
+  <p class="decor-meta"><%= product.brand.name %><%= product.articleCode ? ' · ' + product.articleCode : '' %></p>
+
+  <% if (product.imageUrl) { %>
+    <img src="<%= product.imageUrl %>" alt="" style="max-width:400px;height:auto;margin-bottom:1rem" />
+  <% } %>
+
+  <% if (product.description) { %>
+    <p><%= product.description %></p>
+  <% } %>
+
+  <div class="card">
+    <% if (error) { %>
+      <p class="error-message" role="alert"><%= error %></p>
+    <% } else { %>
+      <table class="admin-table">
+        <tbody>
+          <tr><th scope="row">Rekommenderat pris</th><td><%= line.recommendedPrice.toFixed(2) %> kr/st</td></tr>
+          <tr><th scope="row">Inköpspris</th><td><%= line.purchasePrice.toFixed(2) %> kr/st</td></tr>
+          <% if (line.recommendedPriceInclVat) { %>
+            <tr><th scope="row">Rekommenderat pris (inkl. moms)</th><td><%= line.recommendedPriceInclVat.toFixed(2) %> kr/st</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+<%- include('../../partials/footer') %>

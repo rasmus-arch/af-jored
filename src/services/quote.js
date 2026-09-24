@@ -9,9 +9,7 @@ function calculateCountertopLine({
   priceRows,
   netPriceOverrides = [],
   discountRules = [],
-  baseDiscountPercent = null,
   materialId,
-  brandId,
   decorId,
   thicknessId,
   depthMm,
@@ -37,7 +35,7 @@ function calculateCountertopLine({
   if (override) {
     purchaseRounded = recommended.rounded;
   } else {
-    discountInfo = resolveDiscountPercent({ rules: discountRules, materialId, brandId, baseDiscountPercent, asOf });
+    discountInfo = resolveDiscountPercent({ rules: discountRules, materialId, brandId: null, asOf });
     purchaseRounded = calculatePurchasePrice(recommended.unrounded, discountInfo.percent).rounded;
   }
 
@@ -65,4 +63,43 @@ function calculateCountertopLine({
   return result;
 }
 
-module.exports = { calculateCountertopLine };
+// Beräknar en produktrad (diskho/blandare/tillbehör) styckprissatt, med
+// rabatt matchad enbart på varumärke.
+function calculateProductLine({
+  unitPrice,
+  quantity = 1,
+  discountRules = [],
+  brandId,
+  vatPercent = null,
+  asOf = new Date(),
+}) {
+  const recommendedPerUnit = toDecimal(unitPrice);
+  const unrounded = recommendedPerUnit.times(quantity);
+  const recommended = { unrounded, rounded: roundMoney(unrounded) };
+
+  const discountInfo = resolveDiscountPercent({ rules: discountRules, materialId: null, brandId, asOf });
+  const purchaseRounded = calculatePurchasePrice(recommended.unrounded, discountInfo.percent).rounded;
+
+  const marginAmount = recommended.rounded.minus(purchaseRounded);
+  const marginPercent = recommended.rounded.isZero()
+    ? toDecimal(0)
+    : marginAmount.dividedBy(recommended.rounded).times(100);
+
+  const result = {
+    recommendedPricePerUnit: recommendedPerUnit,
+    recommendedPrice: recommended.rounded,
+    purchasePrice: purchaseRounded,
+    marginAmount: roundMoney(marginAmount),
+    marginPercent: marginPercent.toDecimalPlaces(1),
+    discount: discountInfo,
+  };
+
+  if (vatPercent != null) {
+    result.recommendedPriceInclVat = applyVat(recommended.rounded, vatPercent);
+    result.purchasePriceInclVat = applyVat(purchaseRounded, vatPercent);
+  }
+
+  return result;
+}
+
+module.exports = { calculateCountertopLine, calculateProductLine };

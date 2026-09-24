@@ -17,6 +17,7 @@
     "prisma:deploy": "npm run sync-env && prisma migrate deploy",
     "prisma:studio": "npm run sync-env && prisma studio",
     "seed": "npm run sync-env && node prisma/seed.js",
+    "seed-example-data": "npm run sync-env && node scripts/seed-example-data.js",
     "create-admin": "node scripts/create-admin.js",
     "test": "node --test tests/*.test.js"
   },

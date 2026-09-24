@@ -28,7 +28,7 @@ router.get('/aterforsaljare/nytt', (req, res) => {
 
 router.post('/aterforsaljare', async (req, res, next) => {
   try {
-    const { name, orgNumber, street, postalCode, city, contactName, contactEmail, contactPhone, baseDiscountPercent } = req.body;
+    const { name, orgNumber, street, postalCode, city, contactName, contactEmail, contactPhone } = req.body;
     if (!name || !name.trim() || !orgNumber || !orgNumber.trim()) {
       return res.status(400).render('admin/companies/new', { title: 'Ny återförsäljare', error: 'Namn och org.nr krävs.', values: req.body });
     }
@@ -43,7 +43,6 @@ router.post('/aterforsaljare', async (req, res, next) => {
         contactName: contactName || null,
         contactEmail: contactEmail || null,
         contactPhone: contactPhone || null,
-        baseDiscountPercent: baseDiscountPercent ? baseDiscountPercent : null,
         active: true,
       },
     });
@@ -54,15 +53,18 @@ router.post('/aterforsaljare', async (req, res, next) => {
 });
 
 async function loadCompanyDetailData(companyId) {
-  const [company, users, discountRules, materials, brands, otherCompanies] = await Promise.all([
+  const [company, users, discountRules, materials, brands, otherCompanies, brandAccess] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId } }),
     prisma.user.findMany({ where: { companyId }, orderBy: { email: 'asc' } }),
     prisma.discountRule.findMany({ where: { companyId }, include: { material: true, brand: true }, orderBy: { id: 'desc' } }),
     catalog.listMaterials(),
     catalog.listBrands(),
     prisma.company.findMany({ where: { id: { not: companyId } }, orderBy: { name: 'asc' } }),
+    catalog.getBrandAccessForCompany(companyId),
   ]);
-  return { company, users, discountRules, materials, brands, otherCompanies };
+  const brandVisibility = new Map(brandAccess.map((a) => [a.brandId, a.visible]));
+  const brandsWithAccess = brands.map((b) => ({ ...b, visible: brandVisibility.has(b.id) ? brandVisibility.get(b.id) : true }));
+  return { company, users, discountRules, materials, brands: brandsWithAccess, otherCompanies };
 }
 
 router.get('/aterforsaljare/:id', async (req, res, next) => {
@@ -86,9 +88,7 @@ router.get('/aterforsaljare/:id', async (req, res, next) => {
             priceRows,
             netPriceOverrides,
             discountRules: discountRulesForCalc,
-            baseDiscountPercent: data.company.baseDiscountPercent,
             materialId: decor.materialId,
-            brandId: decor.brandId,
             decorId: decor.id,
             thicknessId: Number(thicknessId),
             depthMm: Number(depthMm),
@@ -125,7 +125,7 @@ router.post('/aterforsaljare/:id', async (req, res, next) => {
     const data = await loadCompanyDetailData(id);
     if (!data.company) return res.status(404).render('error', { title: 'Hittades inte', message: 'Återförsäljaren kunde inte hittas.' });
 
-    const { name, orgNumber, street, postalCode, city, contactName, contactEmail, contactPhone, baseDiscountPercent } = req.body;
+    const { name, orgNumber, street, postalCode, city, contactName, contactEmail, contactPhone } = req.body;
     if (!name || !name.trim() || !orgNumber || !orgNumber.trim()) {
       return res.status(400).render('admin/companies/detail', {
         title: data.company.name, ...data, allDecors: [], preview: null, previewError: null, previewQuery: {},
@@ -144,7 +144,6 @@ router.post('/aterforsaljare/:id', async (req, res, next) => {
         contactName: contactName || null,
         contactEmail: contactEmail || null,
         contactPhone: contactPhone || null,
-        baseDiscountPercent: baseDiscountPercent ? baseDiscountPercent : null,
       },
     });
     res.redirect(`/admin/aterforsaljare/${id}`);
@@ -293,6 +292,27 @@ router.post('/aterforsaljare/:id/rabatter/kopiera', async (req, res, next) => {
     }
     await prisma.auditLog.create({
       data: { userId: req.session.user.id, action: 'DISCOUNT_RULES_COPIED', entityType: 'Company', entityId: companyId, newValue: { fromCompanyId: sourceCompanyId, count: sourceRules.length }, ipAddress: req.ip },
+    });
+
+    res.redirect(`/admin/aterforsaljare/${companyId}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/aterforsaljare/:id/varumarken/:brandId', async (req, res, next) => {
+  try {
+    const companyId = Number(req.params.id);
+    const brandId = Number(req.params.brandId);
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    const brand = await prisma.brand.findUnique({ where: { id: brandId } });
+    if (!company || !brand) return res.status(404).render('error', { title: 'Hittades inte', message: 'Återförsäljaren eller varumärket kunde inte hittas.' });
+
+    const visible = req.body.visible === 'true';
+    await prisma.companyBrandAccess.upsert({
+      where: { companyId_brandId: { companyId, brandId } },
+      create: { companyId, brandId, visible },
+      update: { visible },
     });
 
     res.redirect(`/admin/aterforsaljare/${companyId}`);

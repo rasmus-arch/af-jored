@@ -1,0 +1,42 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Produkter</h1>
+  <p><a class="button" href="/admin/produkter/nytt">Ny produkt</a></p>
+
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th scope="col">Bild</th>
+        <th scope="col">Namn</th>
+        <th scope="col">Typ</th>
+        <th scope="col">Varumärke</th>
+        <th scope="col">Artikelkod</th>
+        <th scope="col">Status</th>
+        <th scope="col">Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% products.forEach(p => { %>
+        <tr>
+          <td><% if (p.imageUrl) { %><img src="<%= p.imageUrl %>" alt="" style="width:48px;height:48px;object-fit:cover" /><% } %></td>
+          <td><%= p.name %></td>
+          <td><%= (productTypes.find(t => t.value === p.type) || {}).label || p.type %></td>
+          <td><%= p.brand.name %></td>
+          <td><%= p.articleCode || '–' %></td>
+          <td>
+            <span class="badge <%= p.active ? 'badge-active' : 'badge-inactive' %>">
+              <%= p.active ? 'Aktiv' : 'Inaktiv' %>
+            </span>
+          </td>
+          <td>
+            <a href="/admin/produkter/<%= p.id %>/redigera">Redigera</a>
+            <form class="inline-form" method="post" action="/admin/produkter/<%= p.id %>/vaxla-aktiv">
+              <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+              <button class="button-link" type="submit"><%= p.active ? 'Inaktivera' : 'Aktivera' %></button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<%- include('../../partials/footer') %>

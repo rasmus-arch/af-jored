@@ -1,0 +1,51 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1><%= title %></h1>
+  <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+
+  <form method="post" action="<%= product && product.id ? '/admin/produkter/' + product.id : '/admin/produkter' %>" enctype="multipart/form-data" class="card">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+
+    <label for="type">Typ</label>
+    <select id="type" name="type" required>
+      <option value="">Välj typ</option>
+      <% productTypes.forEach(t => { %>
+        <option value="<%= t.value %>" <%= product && product.type === t.value ? 'selected' : '' %>><%= t.label %></option>
+      <% }) %>
+    </select>
+
+    <label for="brandId">Varumärke</label>
+    <select id="brandId" name="brandId" required>
+      <option value="">Välj varumärke</option>
+      <% brands.forEach(b => { %>
+        <option value="<%= b.id %>" <%= product && Number(product.brandId) === b.id ? 'selected' : '' %>><%= b.name %></option>
+      <% }) %>
+    </select>
+
+    <label for="name">Namn</label>
+    <input type="text" id="name" name="name" value="<%= product ? product.name : '' %>" required />
+
+    <label for="articleCode">Artikelkod (valfritt)</label>
+    <input type="text" id="articleCode" name="articleCode" value="<%= product && product.articleCode ? product.articleCode : '' %>" />
+
+    <label for="description">Beskrivning (valfritt)</label>
+    <textarea id="description" name="description" rows="4"><%= product && product.description ? product.description : '' %></textarea>
+
+    <label for="image">Bild (valfritt)</label>
+    <% if (product && product.imageUrl) { %>
+      <p><img src="<%= product.imageUrl %>" alt="" style="max-width:150px;height:auto" /></p>
+    <% } %>
+    <input type="file" id="image" name="image" accept="image/*" />
+
+    <label for="sortOrder">Sorteringsordning</label>
+    <input type="number" id="sortOrder" name="sortOrder" value="<%= product && product.sortOrder != null ? product.sortOrder : 0 %>" />
+
+    <label>
+      <input type="checkbox" name="active" <%= !product || product.active ? 'checked' : '' %> />
+      Aktiv
+    </label>
+
+    <button type="submit">Spara</button>
+    <a class="button" style="background:#6b685f;margin-left:.5rem" href="/admin/produkter">Avbryt</a>
+  </form>
+<%- include('../../partials/footer') %>

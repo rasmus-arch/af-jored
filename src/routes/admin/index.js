@@ -7,6 +7,7 @@ const materialsRoutes = require('./materials');
 const brandsRoutes = require('./brands');
 const categoriesRoutes = require('./categories');
 const decorsRoutes = require('./decors');
+const productsRoutes = require('./products');
 const edgeProfilesRoutes = require('./edgeProfiles');
 const addOnsRoutes = require('./addOns');
 const priceListsRoutes = require('./priceLists');
@@ -14,6 +15,7 @@ const companiesRoutes = require('./companies');
 const importExportRoutes = require('./importExport');
 const newsRoutes = require('./news');
 const documentsRoutes = require('./documents');
+const settingsRoutes = require('./settings');
 
 const router = express.Router();
 
@@ -61,6 +63,7 @@ router.use(materialsRoutes);
 router.use(brandsRoutes);
 router.use(categoriesRoutes);
 router.use(decorsRoutes);
+router.use(productsRoutes);
 router.use(edgeProfilesRoutes);
 router.use(addOnsRoutes);
 router.use(priceListsRoutes);
@@ -68,6 +71,7 @@ router.use(companiesRoutes);
 router.use(importExportRoutes);
 router.use(newsRoutes);
 router.use(documentsRoutes);
+router.use(settingsRoutes);
 router.use(logsRoutes);
 
 module.exports = router;

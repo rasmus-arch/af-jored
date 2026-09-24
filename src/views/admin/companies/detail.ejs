@@ -24,8 +24,6 @@
       <input type="email" id="contactEmail" name="contactEmail" value="<%= company.contactEmail || '' %>" />
       <label for="contactPhone">Kontakttelefon</label>
       <input type="text" id="contactPhone" name="contactPhone" value="<%= company.contactPhone || '' %>" />
-      <label for="baseDiscountPercent">Grundrabatt i procent (valfritt)</label>
-      <input type="text" id="baseDiscountPercent" name="baseDiscountPercent" value="<%= company.baseDiscountPercent != null ? company.baseDiscountPercent : '' %>" />
       <p>Status: <span class="badge <%= company.active ? 'badge-active' : 'badge-inactive' %>"><%= company.active ? 'Aktiv' : 'Inaktiv' %></span></p>
       <button type="submit">Spara</button>
     </form>
@@ -93,7 +91,7 @@
 
     <% if (discountError) { %><p class="error-message" role="alert"><%= discountError %></p><% } %>
     <h3>Ny rabattregel</h3>
-    <p class="decor-meta">Mest specifika regeln gäller: material + varumärke &gt; enbart varumärke &gt; enbart material &gt; grundrabatt.</p>
+    <p class="decor-meta">Mest specifika regeln gäller: material + varumärke &gt; enbart varumärke &gt; enbart material. Material används för bänkskivor, varumärke för diskhoar/blandare/tillbehör.</p>
     <form method="post" action="/admin/aterforsaljare/<%= company.id %>/rabatter">
       <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
       <label for="ruleMaterialId">Material (valfritt)</label>
@@ -124,6 +122,29 @@
       </select>
       <button type="submit">Kopiera regler hit</button>
     </form>
+  </div>
+
+  <div class="card">
+    <h2>Varumärkessynlighet</h2>
+    <p class="decor-meta">Styr vilka varumärken (diskhoar, blandare, tillbehör) den här återförsäljaren ser i sortimentet.</p>
+    <table class="admin-table">
+      <thead><tr><th scope="col">Varumärke</th><th scope="col">Synligt för kunden</th><th scope="col">Åtgärd</th></tr></thead>
+      <tbody>
+        <% brands.forEach(b => { %>
+          <tr>
+            <td><%= b.name %></td>
+            <td><span class="badge <%= b.visible ? 'badge-active' : 'badge-inactive' %>"><%= b.visible ? 'Synligt' : 'Dolt' %></span></td>
+            <td>
+              <form class="inline-form" method="post" action="/admin/aterforsaljare/<%= company.id %>/varumarken/<%= b.id %>">
+                <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+                <input type="hidden" name="visible" value="<%= b.visible ? 'false' : 'true' %>" />
+                <button class="button-link" type="submit"><%= b.visible ? 'Dölj' : 'Visa' %></button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
   </div>
 
   <div class="card">
@@ -167,7 +188,7 @@
                 Ingen rabatt
               <% } else { %>
                 <%= preview.line.discount.percent.toFixed(2) %> % (<%=
-                  { 'material+brand': 'material + varumärke', brand: 'varumärke', material: 'material', base: 'grundrabatt' }[preview.line.discount.matchedOn]
+                  { 'material+brand': 'material + varumärke', brand: 'varumärke', material: 'material' }[preview.line.discount.matchedOn]
                 %>)
               <% } %>
             </td>

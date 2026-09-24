@@ -18,8 +18,7 @@ const COLUMNS = [
 ];
 
 async function buildPriceListRows(companyId, asOf) {
-  const [company, priceList, discountRules, netPriceOverrides, decors] = await Promise.all([
-    prisma.company.findUnique({ where: { id: companyId } }),
+  const [priceList, discountRules, netPriceOverrides, decors] = await Promise.all([
     catalog.getCurrentPriceList(asOf),
     catalog.getDiscountRulesForCompany(companyId),
     catalog.getNetPriceOverridesForCompany(companyId),
@@ -41,9 +40,7 @@ async function buildPriceListRows(companyId, asOf) {
           priceRows,
           netPriceOverrides,
           discountRules,
-          baseDiscountPercent: company.baseDiscountPercent,
           materialId: decor.materialId,
-          brandId: decor.brandId,
           decorId: decor.id,
           thicknessId: dt.thickness.id,
           depthMm: row.depthFromMm,

@@ -15,6 +15,7 @@ const authRoutes = require('./routes/auth');
 const accountRoutes = require('./routes/account');
 const adminRoutes = require('./routes/admin');
 const resellerRoutes = require('./routes/reseller');
+const catalog = require('./services/catalog');
 
 const MySQLStore = MySQLStoreFactory(session);
 
@@ -64,6 +65,15 @@ function createApp() {
     res.locals.currentUser = req.session.user || null;
     res.locals.messages = req.flash();
     next();
+  });
+
+  app.use(async (req, res, next) => {
+    try {
+      res.locals.siteSettings = await catalog.getSettings();
+      next();
+    } catch (err) {
+      next(err);
+    }
   });
 
   app.use('/', authRoutes);

@@ -44,15 +44,13 @@ async function listDistinctThicknessValues() {
 
 // Sortimentslistning med filter på material, varumärke, tjocklek, kategori,
 // status samt fritextsökning på artikelkod/namn.
-async function listDecors({ materialId, brandId, thicknessMm, categoryId, status, search, activeOnly = true } = {}) {
+async function listDecors({ materialId, thicknessMm, categoryId, status, search, activeOnly = true } = {}) {
   const where = {};
   if (materialId) where.materialId = materialId;
-  if (brandId) where.brandId = brandId;
   if (categoryId) where.categoryId = categoryId;
   if (status) where.status = status;
   if (activeOnly) {
     where.material = { active: true };
-    where.brand = { active: true };
   }
   if (search) {
     where.OR = [
@@ -70,7 +68,6 @@ async function listDecors({ materialId, brandId, thicknessMm, categoryId, status
     where,
     include: {
       material: true,
-      brand: true,
       category: true,
       decorThicknesses: { where: { active: true }, include: { thickness: true } },
     },
@@ -83,7 +80,6 @@ async function getDecorByArticleCode(articleCode) {
     where: { articleCode },
     include: {
       material: true,
-      brand: true,
       category: true,
       decorThicknesses: { where: { active: true }, include: { thickness: true }, orderBy: { thickness: { valueMm: 'asc' } } },
     },
@@ -95,11 +91,59 @@ async function getDecorById(id) {
     where: { id },
     include: {
       material: true,
-      brand: true,
       category: true,
       decorThicknesses: { where: { active: true }, include: { thickness: true }, orderBy: { thickness: { valueMm: 'asc' } } },
     },
   });
+}
+
+// Varumärken som en viss återförsäljare får se. Om inga rader finns i
+// company_brand_access för kunden syns alla aktiva varumärken (standard).
+async function listVisibleBrandsForCompany(companyId, { activeOnly = true } = {}) {
+  if (!companyId) return listBrands({ activeOnly });
+
+  const access = await prisma.companyBrandAccess.findMany({ where: { companyId } });
+  const brands = await listBrands({ activeOnly });
+  if (access.length === 0) return brands;
+
+  const visibleIds = new Set(access.filter((a) => a.visible).map((a) => a.brandId));
+  return brands.filter((b) => visibleIds.has(b.id));
+}
+
+async function getBrandAccessForCompany(companyId) {
+  return prisma.companyBrandAccess.findMany({ where: { companyId } });
+}
+
+async function listProducts({ type, brandId, activeOnly = true, companyId } = {}) {
+  const where = {};
+  if (type) where.type = type;
+  if (brandId) where.brandId = brandId;
+  if (activeOnly) {
+    where.active = true;
+    where.brand = { active: true };
+  }
+
+  const products = await prisma.product.findMany({
+    where,
+    include: { brand: true },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+  });
+
+  if (!companyId) return products;
+
+  const access = await getBrandAccessForCompany(companyId);
+  if (access.length === 0) return products;
+
+  const hiddenIds = new Set(access.filter((a) => !a.visible).map((a) => a.brandId));
+  return products.filter((p) => !hiddenIds.has(p.brandId));
+}
+
+async function getProductById(id) {
+  return prisma.product.findUnique({ where: { id }, include: { brand: true } });
+}
+
+async function getProductPrice({ priceListId, productId }) {
+  return prisma.productPrice.findUnique({ where: { priceListId_productId: { priceListId, productId } } });
 }
 
 async function getCompatibleEdgeProfiles({ materialId, thicknessId }) {
@@ -165,4 +209,9 @@ module.exports = {
   getCountertopPriceRows,
   getEdgeProfilePrice,
   getAddOnPrice,
+  listVisibleBrandsForCompany,
+  getBrandAccessForCompany,
+  listProducts,
+  getProductById,
+  getProductPrice,
 };

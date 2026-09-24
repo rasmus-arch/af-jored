@@ -63,10 +63,11 @@ router.post('/prislistor', async (req, res, next) => {
 
     if (copyFromId) {
       const sourceId = Number(copyFromId);
-      const [rows, edgePrices, addOnPrices] = await Promise.all([
+      const [rows, edgePrices, addOnPrices, productPrices] = await Promise.all([
         prisma.countertopPriceRow.findMany({ where: { priceListId: sourceId } }),
         prisma.edgeProfilePrice.findMany({ where: { priceListId: sourceId } }),
         prisma.addOnPrice.findMany({ where: { priceListId: sourceId } }),
+        prisma.productPrice.findMany({ where: { priceListId: sourceId } }),
       ]);
       for (const row of rows) {
         await prisma.countertopPriceRow.create({
@@ -78,6 +79,9 @@ router.post('/prislistor', async (req, res, next) => {
       }
       for (const p of addOnPrices) {
         await prisma.addOnPrice.create({ data: { priceListId: priceList.id, addOnId: p.addOnId, thicknessId: p.thicknessId, price: p.price } });
+      }
+      for (const p of productPrices) {
+        await prisma.productPrice.create({ data: { priceListId: priceList.id, productId: p.productId, price: p.price } });
       }
     }
 
@@ -105,10 +109,11 @@ router.post('/prislistor/:id/hoja', async (req, res, next) => {
       data: { name: name.trim(), validFrom: new Date(validFrom), createdById: req.session.user.id },
     });
 
-    const [rows, edgePrices, addOnPrices] = await Promise.all([
+    const [rows, edgePrices, addOnPrices, productPrices] = await Promise.all([
       prisma.countertopPriceRow.findMany({ where: { priceListId: sourceId } }),
       prisma.edgeProfilePrice.findMany({ where: { priceListId: sourceId } }),
       prisma.addOnPrice.findMany({ where: { priceListId: sourceId } }),
+      prisma.productPrice.findMany({ where: { priceListId: sourceId } }),
     ]);
 
     for (const row of rows) {
@@ -125,6 +130,10 @@ router.post('/prislistor/:id/hoja', async (req, res, next) => {
       const newPrice = applyPercentageIncrease(p.price, percent);
       await prisma.addOnPrice.create({ data: { priceListId: newList.id, addOnId: p.addOnId, thicknessId: p.thicknessId, price: newPrice } });
     }
+    for (const p of productPrices) {
+      const newPrice = applyPercentageIncrease(p.price, percent);
+      await prisma.productPrice.create({ data: { priceListId: newList.id, productId: p.productId, price: newPrice } });
+    }
 
     await logPriceChange(req, 'PriceList', newList.id, { basedOn: sourceId }, { name: newList.name, validFrom: newList.validFrom, percent });
     res.redirect(`/admin/prislistor/${newList.id}`);
@@ -139,7 +148,7 @@ router.get('/prislistor/:id', async (req, res, next) => {
     const priceList = await prisma.priceList.findUnique({ where: { id } });
     if (!priceList) return res.status(404).render('error', { title: 'Hittades inte', message: 'Prislistan kunde inte hittas.' });
 
-    const [materials, rows, edgeProfiles, edgePrices, addOns, addOnPrices] = await Promise.all([
+    const [materials, rows, edgeProfiles, edgePrices, addOns, addOnPrices, products, productPrices] = await Promise.all([
       getMaterialsWithThicknesses(),
       prisma.countertopPriceRow.findMany({
         where: { priceListId: id },
@@ -150,6 +159,8 @@ router.get('/prislistor/:id', async (req, res, next) => {
       prisma.edgeProfilePrice.findMany({ where: { priceListId: id }, include: { edgeProfile: true, thickness: true } }),
       prisma.addOn.findMany({ where: { active: true }, orderBy: { name: 'asc' } }),
       prisma.addOnPrice.findMany({ where: { priceListId: id }, include: { addOn: true, thickness: true } }),
+      prisma.product.findMany({ where: { active: true }, include: { brand: true }, orderBy: { name: 'asc' } }),
+      prisma.productPrice.findMany({ where: { priceListId: id }, include: { product: { include: { brand: true } } } }),
     ]);
 
     // Gruppera rader per material+tjocklek och varna för luckor (överlapp
@@ -180,6 +191,8 @@ router.get('/prislistor/:id', async (req, res, next) => {
       edgePrices,
       addOns,
       addOnPrices,
+      products,
+      productPrices,
       gapWarnings,
       rowError: req.query.rowError || null,
       hojError: req.query.hojError || null,
@@ -309,6 +322,31 @@ router.post('/prislistor/:id/tillvalspriser', async (req, res, next) => {
     } else {
       const created = await prisma.addOnPrice.create({ data: { priceListId, addOnId, thicknessId, price } });
       await logPriceChange(req, 'AddOnPrice', created.id, null, { addOnId, thicknessId, price });
+    }
+
+    res.redirect(`/admin/prislistor/${priceListId}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/prislistor/:id/produktpriser', async (req, res, next) => {
+  try {
+    const priceListId = Number(req.params.id);
+    const productId = Number(req.body.productId);
+    const price = req.body.price;
+
+    if (!productId || !price) {
+      return res.redirect(`/admin/prislistor/${priceListId}?rowError=${encodeURIComponent('Produkt och pris krävs.')}`);
+    }
+
+    const existing = await prisma.productPrice.findUnique({ where: { priceListId_productId: { priceListId, productId } } });
+    if (existing) {
+      await prisma.productPrice.update({ where: { id: existing.id }, data: { price } });
+      await logPriceChange(req, 'ProductPrice', existing.id, { price: existing.price }, { price });
+    } else {
+      const created = await prisma.productPrice.create({ data: { priceListId, productId, price } });
+      await logPriceChange(req, 'ProductPrice', created.id, null, { productId, price });
     }
 
     res.redirect(`/admin/prislistor/${priceListId}`);

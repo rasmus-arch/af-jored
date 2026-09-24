@@ -6,10 +6,11 @@ function isRuleActive(rule, asOf) {
   return true;
 }
 
-// Prioritetsordning: material+varumärke > enbart varumärke > enbart material
-// > återförsäljarens grundrabatt. `rules` ska vara förfiltrerat till en enda
-// återförsäljare.
-function resolveDiscountPercent({ rules, materialId, brandId, baseDiscountPercent = null, asOf = new Date() }) {
+// Prioritetsordning: material+varumärke > enbart varumärke > enbart material.
+// Bänkskivor matchas via materialId (brandId = null); varumärkesprodukter
+// (diskhoar/blandare/tillbehör) matchas via brandId (materialId = null).
+// `rules` ska vara förfiltrerat till en enda återförsäljare.
+function resolveDiscountPercent({ rules, materialId = null, brandId = null, asOf = new Date() }) {
   const active = rules.filter((r) => isRuleActive(r, asOf));
 
   const materialAndBrand = active.find(
@@ -27,10 +28,6 @@ function resolveDiscountPercent({ rules, materialId, brandId, baseDiscountPercen
   const materialOnly = active.find((r) => r.brandId == null && r.materialId != null && r.materialId === materialId);
   if (materialOnly) {
     return { percent: toDecimal(materialOnly.discountPercent), rule: materialOnly, matchedOn: 'material' };
-  }
-
-  if (baseDiscountPercent != null) {
-    return { percent: toDecimal(baseDiscountPercent), rule: null, matchedOn: 'base' };
   }
 
   return { percent: toDecimal(0), rule: null, matchedOn: 'none' };

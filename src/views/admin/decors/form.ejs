@@ -20,14 +20,6 @@
       <% }) %>
     </select>
 
-    <label for="brandId">Varumärke</label>
-    <select id="brandId" name="brandId" required>
-      <option value="">Välj varumärke</option>
-      <% brands.forEach(b => { %>
-        <option value="<%= b.id %>" <%= decor && Number(decor.brandId) === b.id ? 'selected' : '' %>><%= b.name %></option>
-      <% }) %>
-    </select>
-
     <label for="categoryId">Kategori</label>
     <select id="categoryId" name="categoryId" required>
       <option value="">Välj kategori</option>

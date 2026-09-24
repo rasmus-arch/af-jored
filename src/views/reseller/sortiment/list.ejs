@@ -14,16 +14,6 @@
       </div>
 
       <div>
-        <label for="brandId">Varumärke</label>
-        <select id="brandId" name="brandId">
-          <option value="">Alla varumärken</option>
-          <% brands.forEach(b => { %>
-            <option value="<%= b.id %>" <%= String(filters.brandId) === String(b.id) ? 'selected' : '' %>><%= b.name %></option>
-          <% }) %>
-        </select>
-      </div>
-
-      <div>
         <label for="categoryId">Kategori</label>
         <select id="categoryId" name="categoryId">
           <option value="">Alla kategorier</option>
@@ -71,13 +61,57 @@
     <% decors.forEach(decor => { %>
       <a class="card decor-card" href="/portal/sortiment/<%= decor.articleCode %>">
         <h2><%= decor.name %></h2>
-        <p class="decor-meta"><%= decor.articleCode %> · <%= decor.material.name %> · <%= decor.brand.name %></p>
+        <p class="decor-meta"><%= decor.articleCode %> · <%= decor.material.name %></p>
         <p class="decor-meta">
           Tjocklekar: <%= decor.decorThicknesses.map(dt => dt.thickness.valueMm + ' mm').join(', ') || '–' %>
         </p>
         <p class="decor-status decor-status-<%= decor.status.toLowerCase() %>">
           <%= decor.status === 'AKTIV' ? 'Aktiv' : (decor.status === 'UTGAENDE' ? 'Utgående' : 'Utgått') %>
         </p>
+      </a>
+    <% }) %>
+  </div>
+
+  <h2 style="margin-top:2rem">Diskhoar, blandare &amp; tillbehör</h2>
+  <form method="get" action="/portal/sortiment" class="card">
+    <input type="hidden" name="materialId" value="<%= filters.materialId || '' %>" />
+    <input type="hidden" name="thicknessMm" value="<%= filters.thicknessMm || '' %>" />
+    <input type="hidden" name="categoryId" value="<%= filters.categoryId || '' %>" />
+    <input type="hidden" name="status" value="<%= filters.status || '' %>" />
+    <input type="hidden" name="q" value="<%= filters.q || '' %>" />
+    <div class="filter-grid">
+      <div>
+        <label for="productType">Typ</label>
+        <select id="productType" name="productType">
+          <option value="">Alla typer</option>
+          <option value="DISKHO" <%= filters.productType === 'DISKHO' ? 'selected' : '' %>>Diskho</option>
+          <option value="BLANDARE" <%= filters.productType === 'BLANDARE' ? 'selected' : '' %>>Blandare</option>
+          <option value="TILLBEHOR" <%= filters.productType === 'TILLBEHOR' ? 'selected' : '' %>>Tillbehör</option>
+        </select>
+      </div>
+      <div>
+        <label for="brandId">Varumärke</label>
+        <select id="brandId" name="brandId">
+          <option value="">Alla varumärken</option>
+          <% brands.forEach(b => { %>
+            <option value="<%= b.id %>" <%= String(filters.brandId) === String(b.id) ? 'selected' : '' %>><%= b.name %></option>
+          <% }) %>
+        </select>
+      </div>
+    </div>
+    <button type="submit">Filtrera</button>
+  </form>
+
+  <% if (products.length === 0) { %>
+    <p>Inga produkter matchade filtret.</p>
+  <% } %>
+
+  <div class="decor-grid">
+    <% products.forEach(product => { %>
+      <a class="card decor-card" href="/portal/sortiment/produkt/<%= product.id %>">
+        <% if (product.imageUrl) { %><img src="<%= product.imageUrl %>" alt="" style="max-width:100%;height:auto" /><% } %>
+        <h2><%= product.name %></h2>
+        <p class="decor-meta"><%= product.brand.name %><%= product.articleCode ? ' · ' + product.articleCode : '' %></p>
       </a>
     <% }) %>
   </div>

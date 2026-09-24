@@ -149,6 +149,32 @@
   </div>
 
   <div class="card">
+    <h2>Produktpriser (diskhoar, blandare, tillbehör)</h2>
+    <table class="admin-table">
+      <thead><tr><th scope="col">Produkt</th><th scope="col">Varumärke</th><th scope="col">Pris</th></tr></thead>
+      <tbody>
+        <% productPrices.forEach(p => { %>
+          <tr>
+            <td><%= p.product.name %></td>
+            <td><%= p.product.brand.name %></td>
+            <td><%= p.price.toFixed(2) %> kr/st</td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <form method="post" action="/admin/prislistor/<%= priceList.id %>/produktpriser">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="productId">Produkt</label>
+      <select id="productId" name="productId" required>
+        <% products.forEach(p => { %><option value="<%= p.id %>"><%= p.brand.name %> – <%= p.name %></option><% }) %>
+      </select>
+      <label for="productPrice">Pris (kr/st)</label>
+      <input type="text" id="productPrice" name="price" required />
+      <button type="submit">Spara pris</button>
+    </form>
+  </div>
+
+  <div class="card">
     <h2>Förbered nästa period</h2>
     <p>Skapar en ny prislista med alla priser höjda med en procentsats, utan att röra den här prislistan.</p>
     <form method="post" action="/admin/prislistor/<%= priceList.id %>/hoja">

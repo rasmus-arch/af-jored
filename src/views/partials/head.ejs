@@ -5,10 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title><%= title %> – Joreds återförsäljarportal</title>
   <link rel="stylesheet" href="/css/theme.css" />
+  <% if (typeof siteSettings !== 'undefined' && siteSettings && siteSettings.accentColor) { %>
+    <style>:root { --color-accent: <%= siteSettings.accentColor %>; }</style>
+  <% } %>
 </head>
 <body>
   <header class="site-header">
-    <a class="logo" href="/">Joreds återförsäljarportal</a>
+    <% if (typeof siteSettings !== 'undefined' && siteSettings && siteSettings.logoUrl) { %>
+      <a class="logo" href="/"><img src="<%= siteSettings.logoUrl %>" alt="Joreds återförsäljarportal" style="max-height:2.5rem;display:block" /></a>
+    <% } else { %>
+      <a class="logo" href="/">Joreds återförsäljarportal</a>
+    <% } %>
     <% if (typeof currentUser !== 'undefined' && currentUser) { %>
       <nav aria-label="Huvudmeny" class="site-nav">
         <% if (currentUser.role === 'RESELLER') { %>

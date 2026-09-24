@@ -11,7 +11,6 @@ const DECOR_COLUMNS = [
   { header: 'artikelkod', key: 'artikelkod' },
   { header: 'namn', key: 'namn' },
   { header: 'material', key: 'material' },
-  { header: 'varumärke', key: 'varumarke' },
   { header: 'kategori', key: 'kategori' },
   { header: 'ytstruktur', key: 'ytstruktur' },
   { header: 'maxlängd_mm', key: 'maxlangd_mm' },
@@ -52,14 +51,13 @@ router.get('/import-export', async (req, res, next) => {
 router.get('/import-export/dekorer/export', async (req, res, next) => {
   try {
     const decors = await prisma.decor.findMany({
-      include: { material: true, brand: true, category: true },
+      include: { material: true, category: true },
       orderBy: { articleCode: 'asc' },
     });
     const rows = decors.map((d) => ({
       artikelkod: d.articleCode,
       namn: d.name,
       material: d.material.name,
-      varumarke: d.brand.name,
       kategori: d.category.name,
       ytstruktur: d.surfaceTexture || '',
       maxlangd_mm: d.maxLengthMm || '',
@@ -86,14 +84,12 @@ function normalize(str) {
 }
 
 async function validateDecorRows(rawRows) {
-  const [materials, brands, categories, existingDecors] = await Promise.all([
+  const [materials, categories, existingDecors] = await Promise.all([
     prisma.material.findMany(),
-    prisma.brand.findMany(),
     prisma.decorCategory.findMany(),
     prisma.decor.findMany({ select: { id: true, articleCode: true } }),
   ]);
   const materialByName = new Map(materials.map((m) => [normalize(m.name), m]));
-  const brandByName = new Map(brands.map((b) => [normalize(b.name), b]));
   const categoryByName = new Map(categories.map((c) => [normalize(c.name), c]));
   const existingByCode = new Map(existingDecors.map((d) => [normalize(d.articleCode), d]));
   const validStatuses = new Set(['AKTIV', 'UTGAENDE', 'UTGATT']);
@@ -105,7 +101,6 @@ async function validateDecorRows(rawRows) {
     const articleCode = (row.artikelkod || '').trim();
     const name = (row.namn || '').trim();
     const materialName = (row.material || '').trim();
-    const brandName = (row['varumärke'] || '').trim();
     const categoryName = (row.kategori || '').trim();
     const status = (row.status || 'AKTIV').trim().toUpperCase();
     const maxLengthMm = row['maxlängd_mm'] ? Number(row['maxlängd_mm']) : null;
@@ -117,8 +112,6 @@ async function validateDecorRows(rawRows) {
 
     const material = materialByName.get(normalize(materialName));
     if (!material) errors.push(`Materialet "${materialName}" finns inte.`);
-    const brand = brandByName.get(normalize(brandName));
-    if (!brand) errors.push(`Varumärket "${brandName}" finns inte.`);
     const category = categoryByName.get(normalize(categoryName));
     if (!category) errors.push(`Kategorin "${categoryName}" finns inte.`);
     if (!validStatuses.has(status)) errors.push(`Ogiltig status "${status}".`);
@@ -134,7 +127,6 @@ async function validateDecorRows(rawRows) {
         articleCode,
         name,
         materialId: material?.id,
-        brandId: brand?.id,
         categoryId: category?.id,
         surfaceTexture: row.ytstruktur || null,
         maxLengthMm: maxLengthMm || null,

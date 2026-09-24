@@ -9,7 +9,6 @@
         <th scope="col">Kod</th>
         <th scope="col">Namn</th>
         <th scope="col">Material</th>
-        <th scope="col">Varumärke</th>
         <th scope="col">Status</th>
         <th scope="col">Åtgärder</th>
       </tr>
@@ -20,7 +19,6 @@
           <td><%= d.articleCode %></td>
           <td><%= d.name %></td>
           <td><%= d.material.name %></td>
-          <td><%= d.brand.name %></td>
           <td>
             <span class="badge <%= d.status === 'AKTIV' ? 'badge-active' : 'badge-inactive' %>">
               <%= d.status === 'AKTIV' ? 'Aktiv' : (d.status === 'UTGAENDE' ? 'Utgående' : 'Utgått') %>

@@ -39,18 +39,16 @@ test('enbart varumärke slår material när det är mer specifikt', () => {
   assert.equal(result.percent.toString(), '40');
 });
 
-test('grundrabatt används när ingen specifik regel matchar', () => {
-  const result = resolveDiscountPercent({
-    rules,
-    materialId: 999,
-    brandId: 999,
-    baseDiscountPercent: '10.00',
-  });
-  assert.equal(result.matchedOn, 'base');
-  assert.equal(result.percent.toString(), '10');
+test('varumärkesprodukt (t.ex. diskho) matchas enbart på brandId, utan materialId', () => {
+  const productRules = [
+    { materialId: null, brandId: BRAND_X, discountPercent: '20.00' },
+  ];
+  const result = resolveDiscountPercent({ rules: productRules, materialId: null, brandId: BRAND_X });
+  assert.equal(result.matchedOn, 'brand');
+  assert.equal(result.percent.toString(), '20');
 });
 
-test('ingen rabatt (0%) när varken regel eller grundrabatt matchar', () => {
+test('ingen rabatt (0%) när ingen regel matchar', () => {
   const result = resolveDiscountPercent({ rules, materialId: 999, brandId: 999 });
   assert.equal(result.matchedOn, 'none');
   assert.equal(result.percent.toString(), '0');
