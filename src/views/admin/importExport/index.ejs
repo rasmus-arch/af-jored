@@ -1,0 +1,62 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Import/export</h1>
+  <p class="decor-meta">Importer förhandsgranskas och valideras innan något sparas.</p>
+
+  <div class="card">
+    <h2>Dekorer</h2>
+    <p>
+      <a class="button" href="/admin/import-export/dekorer/export">Exportera CSV</a>
+      <a class="button" style="background:#6b685f" href="/admin/import-export/dekorer/export?format=xlsx">Exportera Excel</a>
+    </p>
+    <form method="post" action="/admin/import-export/dekorer/forhandsgranska" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="decorFile">Importera dekorer (CSV eller Excel)</label>
+      <input type="file" id="decorFile" name="file" accept=".csv,.xlsx" required />
+      <button type="submit">Förhandsgranska</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Prisrader</h2>
+    <form method="get" action="/admin/import-export/prisrader/export" style="margin-bottom:1rem">
+      <label for="exportPriceListId">Prislista</label>
+      <select id="exportPriceListId" name="priceListId">
+        <% priceLists.forEach(p => { %><option value="<%= p.id %>"><%= p.name %></option><% }) %>
+      </select>
+      <button type="submit">Exportera CSV</button>
+      <button type="submit" formaction="/admin/import-export/prisrader/export?format=xlsx">Exportera Excel</button>
+    </form>
+    <form method="post" action="/admin/import-export/prisrader/forhandsgranska" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="priceListId">Prislista att importera till</label>
+      <select id="priceListId" name="priceListId" required>
+        <% priceLists.forEach(p => { %><option value="<%= p.id %>"><%= p.name %></option><% }) %>
+      </select>
+      <label for="priceFile">Fil (CSV eller Excel)</label>
+      <input type="file" id="priceFile" name="file" accept=".csv,.xlsx" required />
+      <button type="submit">Förhandsgranska</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Rabattregler</h2>
+    <form method="get" action="/admin/import-export/rabatter/export" style="margin-bottom:1rem">
+      <label for="exportCompanyId">Återförsäljare</label>
+      <select id="exportCompanyId" name="companyId">
+        <% companies.forEach(c => { %><option value="<%= c.id %>"><%= c.name %></option><% }) %>
+      </select>
+      <button type="submit">Exportera CSV</button>
+    </form>
+    <form method="post" action="/admin/import-export/rabatter/forhandsgranska" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="companyId">Återförsäljare att importera till</label>
+      <select id="companyId" name="companyId" required>
+        <% companies.forEach(c => { %><option value="<%= c.id %>"><%= c.name %></option><% }) %>
+      </select>
+      <label for="discountFile">Fil (CSV eller Excel)</label>
+      <input type="file" id="discountFile" name="file" accept=".csv,.xlsx" required />
+      <button type="submit">Förhandsgranska</button>
+    </form>
+  </div>
+<%- include('../../partials/footer') %>

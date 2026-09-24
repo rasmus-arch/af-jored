@@ -1,0 +1,34 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Förhandsgranska prisimport</h1>
+  <p>Till prislista: <strong><%= priceList.name %></strong></p>
+  <% const okRows = rows.filter(r => r.errors.length === 0); %>
+  <p><%= okRows.length %> av <%= rows.length %> rader kan importeras.</p>
+
+  <table class="admin-table">
+    <thead>
+      <tr><th scope="col">Rad</th><th scope="col">Material</th><th scope="col">Tjocklek</th><th scope="col">Djup</th><th scope="col">Kr/lm</th><th scope="col">Status</th></tr>
+    </thead>
+    <tbody>
+      <% rows.forEach(r => { %>
+        <tr>
+          <td><%= r.rowNumber %></td>
+          <td><%= r.display.material %></td>
+          <td><%= r.display.tjocklek_mm %> mm</td>
+          <td><%= r.display.djup_fran_mm %>&ndash;<%= r.display.djup_till_mm %> mm</td>
+          <td><%= r.display.pris_per_lopmeter %></td>
+          <td>
+            <% if (r.errors.length === 0) { %><span class="badge badge-active">OK</span>
+            <% } else { %><span class="badge badge-inactive"><%= r.errors.join(' ') %></span><% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <form method="post" action="/admin/import-export/prisrader/bekrafta">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+    <button type="submit" <%= okRows.length === 0 ? 'disabled' : '' %>>Importera <%= okRows.length %> rad(er)</button>
+    <a class="button" style="background:#6b685f;margin-left:.5rem" href="/admin/import-export">Avbryt</a>
+  </form>
+<%- include('../../partials/footer') %>

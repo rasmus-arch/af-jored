@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../../lib/prisma');
 const { uploadImage, imagePublicUrl } = require('../../middleware/upload');
+const { verifyCsrfAfterUpload } = require('../../middleware/csrf');
 
 const router = express.Router();
 
@@ -30,7 +31,7 @@ router.get('/kantprofiler/nytt', async (req, res, next) => {
   }
 });
 
-router.post('/kantprofiler', uploadImage.single('image'), async (req, res, next) => {
+router.post('/kantprofiler', uploadImage.single('image'), verifyCsrfAfterUpload, async (req, res, next) => {
   try {
     const { name, description, priceUnit } = req.body;
     const materials = await getMaterialsWithThicknesses();
@@ -76,7 +77,7 @@ router.get('/kantprofiler/:id/redigera', async (req, res, next) => {
   }
 });
 
-router.post('/kantprofiler/:id', uploadImage.single('image'), async (req, res, next) => {
+router.post('/kantprofiler/:id', uploadImage.single('image'), verifyCsrfAfterUpload, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const edgeProfile = await prisma.edgeProfile.findUnique({ where: { id } });

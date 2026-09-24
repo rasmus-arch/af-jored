@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../../lib/prisma');
 const { uploadImage, imagePublicUrl } = require('../../middleware/upload');
+const { verifyCsrfAfterUpload } = require('../../middleware/csrf');
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ router.get('/material/nytt', (req, res) => {
   res.render('admin/materials/form', { title: 'Nytt material', material: null, error: null });
 });
 
-router.post('/material', uploadImage.single('image'), async (req, res, next) => {
+router.post('/material', uploadImage.single('image'), verifyCsrfAfterUpload, async (req, res, next) => {
   try {
     const { name, description, sortOrder } = req.body;
     if (!name || !name.trim()) {
@@ -100,7 +101,7 @@ router.post('/material/:id/tjocklekar/:thicknessId/vaxla-aktiv', async (req, res
   }
 });
 
-router.post('/material/:id', uploadImage.single('image'), async (req, res, next) => {
+router.post('/material/:id', uploadImage.single('image'), verifyCsrfAfterUpload, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const material = await prisma.material.findUnique({ where: { id } });

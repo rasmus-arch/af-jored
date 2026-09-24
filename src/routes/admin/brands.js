@@ -1,6 +1,7 @@
 const express = require('express');
 const prisma = require('../../lib/prisma');
 const { uploadImage, imagePublicUrl } = require('../../middleware/upload');
+const { verifyCsrfAfterUpload } = require('../../middleware/csrf');
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ router.get('/varumarken/nytt', (req, res) => {
   res.render('admin/brands/form', { title: 'Nytt varumärke', brand: null, error: null });
 });
 
-router.post('/varumarken', uploadImage.single('logo'), async (req, res, next) => {
+router.post('/varumarken', uploadImage.single('logo'), verifyCsrfAfterUpload, async (req, res, next) => {
   try {
     const { name } = req.body;
     if (!name || !name.trim()) {
@@ -42,7 +43,7 @@ router.get('/varumarken/:id/redigera', async (req, res, next) => {
   }
 });
 
-router.post('/varumarken/:id', uploadImage.single('logo'), async (req, res, next) => {
+router.post('/varumarken/:id', uploadImage.single('logo'), verifyCsrfAfterUpload, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const brand = await prisma.brand.findUnique({ where: { id } });

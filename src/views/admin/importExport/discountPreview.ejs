@@ -1,0 +1,33 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Förhandsgranska rabattimport</h1>
+  <p>Till återförsäljare: <strong><%= company.name %></strong></p>
+  <% const okRows = rows.filter(r => r.errors.length === 0); %>
+  <p><%= okRows.length %> av <%= rows.length %> rader kan importeras.</p>
+
+  <table class="admin-table">
+    <thead>
+      <tr><th scope="col">Rad</th><th scope="col">Material</th><th scope="col">Varumärke</th><th scope="col">Rabatt</th><th scope="col">Status</th></tr>
+    </thead>
+    <tbody>
+      <% rows.forEach(r => { %>
+        <tr>
+          <td><%= r.rowNumber %></td>
+          <td><%= r.display.material || 'Alla' %></td>
+          <td><%= r.display['varumärke'] || 'Alla' %></td>
+          <td><%= r.display.rabatt_procent %> %</td>
+          <td>
+            <% if (r.errors.length === 0) { %><span class="badge badge-active">OK</span>
+            <% } else { %><span class="badge badge-inactive"><%= r.errors.join(' ') %></span><% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <form method="post" action="/admin/import-export/rabatter/bekrafta">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+    <button type="submit" <%= okRows.length === 0 ? 'disabled' : '' %>>Importera <%= okRows.length %> rad(er)</button>
+    <a class="button" style="background:#6b685f;margin-left:.5rem" href="/admin/import-export">Avbryt</a>
+  </form>
+<%- include('../../partials/footer') %>

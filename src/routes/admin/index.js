@@ -9,6 +9,7 @@ const edgeProfilesRoutes = require('./edgeProfiles');
 const addOnsRoutes = require('./addOns');
 const priceListsRoutes = require('./priceLists');
 const companiesRoutes = require('./companies');
+const importExportRoutes = require('./importExport');
 
 const router = express.Router();
 
@@ -26,5 +27,6 @@ router.use(edgeProfilesRoutes);
 router.use(addOnsRoutes);
 router.use(priceListsRoutes);
 router.use(companiesRoutes);
+router.use(importExportRoutes);
 
 module.exports = router;
