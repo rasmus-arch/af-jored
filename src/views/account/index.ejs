@@ -23,16 +23,12 @@
     <% if (typeof totpError !== 'undefined' && totpError) { %><p class="error-message" role="alert"><%= totpError %></p><% } %>
     <% if (user.totpEnabled) { %>
       <p>Tvåstegsverifiering är aktiverad för ditt konto.</p>
-      <% if (user.role === 'ADMIN') { %>
-        <p class="decor-meta">Obligatoriskt för administratörer och kan inte stängas av.</p>
-      <% } else { %>
-        <form method="post" action="/konto/tva-stegsverifiering/inaktivera" novalidate>
-          <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
-          <label for="currentPassword2">Bekräfta med ditt lösenord för att stänga av</label>
-          <input type="password" id="currentPassword2" name="currentPassword" autocomplete="current-password" required />
-          <button type="submit">Stäng av tvåstegsverifiering</button>
-        </form>
-      <% } %>
+      <form method="post" action="/konto/tva-stegsverifiering/inaktivera" novalidate>
+        <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+        <label for="currentPassword2">Bekräfta med ditt lösenord för att stänga av</label>
+        <input type="password" id="currentPassword2" name="currentPassword" autocomplete="current-password" required />
+        <button type="submit">Stäng av tvåstegsverifiering</button>
+      </form>
     <% } else { %>
       <p>Tvåstegsverifiering är inte aktiverad.</p>
       <a class="button" href="/konto/tva-stegsverifiering/installera">Aktivera tvåstegsverifiering</a>

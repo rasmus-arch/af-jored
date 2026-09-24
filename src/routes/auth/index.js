@@ -8,10 +8,6 @@ const passwordResetRoutes = require('./passwordReset');
 
 const router = express.Router();
 
-function isTotpRequired(user) {
-  return user.role === 'ADMIN';
-}
-
 async function completeLogin(req, res, user) {
   await new Promise((resolve, reject) => {
     req.session.regenerate((err) => (err ? reject(err) : resolve()));
@@ -65,11 +61,6 @@ router.post('/logga-in', loginLimiter, async (req, res, next) => {
       return res.redirect('/logga-in/verifiera');
     }
 
-    if (isTotpRequired(user)) {
-      req.session.pendingUserId = user.id;
-      return res.redirect('/logga-in/installera-2fa');
-    }
-
     return completeLogin(req, res, user);
   } catch (err) {
     return next(err);
@@ -98,58 +89,6 @@ router.post('/logga-in/verifiera', loginLimiter, async (req, res, next) => {
     return completeLogin(req, res, user);
   } catch (err) {
     return next(err);
-  }
-});
-
-// Obligatorisk TOTP-aktivering för admin som ännu inte satt upp det.
-router.get('/logga-in/installera-2fa', async (req, res, next) => {
-  try {
-    if (!req.session.pendingUserId) return res.redirect('/logga-in');
-    const user = await prisma.user.findUnique({ where: { id: req.session.pendingUserId } });
-    if (!user || !isTotpRequired(user) || user.totpEnabled) return res.redirect('/logga-in');
-
-    if (!req.session.pendingTotpSecret) {
-      req.session.pendingTotpSecret = totp.generateSecret();
-    }
-    const qrDataUrl = await totp.generateQrCodeDataUrl(user.email, req.session.pendingTotpSecret);
-
-    res.render('auth/setup-totp', {
-      title: 'Aktivera tvåstegsverifiering',
-      error: null,
-      qrDataUrl,
-      secret: req.session.pendingTotpSecret,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.post('/logga-in/installera-2fa', loginLimiter, async (req, res, next) => {
-  try {
-    if (!req.session.pendingUserId || !req.session.pendingTotpSecret) return res.redirect('/logga-in');
-    const user = await prisma.user.findUnique({ where: { id: req.session.pendingUserId } });
-    if (!user || !isTotpRequired(user) || user.totpEnabled) return res.redirect('/logga-in');
-
-    const valid = totp.verifyToken(req.session.pendingTotpSecret, req.body.code);
-    if (!valid) {
-      const qrDataUrl = await totp.generateQrCodeDataUrl(user.email, req.session.pendingTotpSecret);
-      return res.status(401).render('auth/setup-totp', {
-        title: 'Aktivera tvåstegsverifiering',
-        error: 'Fel kod. Försök igen.',
-        qrDataUrl,
-        secret: req.session.pendingTotpSecret,
-      });
-    }
-
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: { totpSecret: req.session.pendingTotpSecret, totpEnabled: true },
-    });
-    delete req.session.pendingTotpSecret;
-
-    return completeLogin(req, res, updatedUser);
-  } catch (err) {
-    next(err);
   }
 });
 

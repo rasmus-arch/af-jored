@@ -180,5 +180,5 @@ Starta sedan om applikationen i cPanel för att ladda in ändringarna
 - All åtkomstkontroll (roll, tillhörighet till företag) görs på servern, inte
   bara i gränssnittet - se `src/middleware/auth.js` och
   `tests/access-control.test.js`
-- Tvåstegsverifiering (TOTP) planeras per användare, obligatoriskt för admin
-  (byggs ut i kommande fas)
+- Tvåstegsverifiering (TOTP) kan aktiveras frivilligt per användare under
+  "Mitt konto", för både admin och återförsäljare

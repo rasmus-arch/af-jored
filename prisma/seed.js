@@ -6,11 +6,14 @@ const prisma = new PrismaClient();
 
 const SEED_PASSWORD = 'ByteMigDirekt123!';
 
-async function hash(password) {
-  return argon2.hash(password);
-}
-
 async function main() {
+  // Argon2 är avsiktligt tungt (minne + flera trådar) för att stå emot
+  // brute-force. Alla seed-användare får samma lösenord, så vi hashar det
+  // bara en gång och återanvänder resultatet - annars blir seed onödigt
+  // resurskrävande (särskilt märkbart på begränsad delad hosting).
+  console.log('Hashar lösenord (kan ta några sekunder)...');
+  const seedPasswordHash = await argon2.hash(SEED_PASSWORD);
+
   console.log('Rensar befintlig data...');
   await prisma.productView.deleteMany();
   await prisma.documentCompany.deleteMany();
@@ -46,9 +49,9 @@ async function main() {
   await prisma.user.create({
     data: {
       email: 'admin@joredspostformning.se',
-      passwordHash: await hash(SEED_PASSWORD),
+      passwordHash: seedPasswordHash,
       role: 'ADMIN',
-      totpEnabled: false, // aktiveras vid första inloggning i produktion (obligatoriskt för admin)
+      totpEnabled: false, // kan aktiveras frivilligt via Mitt konto
       active: true,
     },
   });
@@ -263,7 +266,7 @@ async function main() {
     data: {
       companyId: companyA.id,
       email: 'anna@kakelspecialisten.se',
-      passwordHash: await hash(SEED_PASSWORD),
+      passwordHash: seedPasswordHash,
       role: 'RESELLER',
       active: true,
     },
@@ -272,7 +275,7 @@ async function main() {
     data: {
       companyId: companyA.id,
       email: 'kollega@kakelspecialisten.se',
-      passwordHash: await hash(SEED_PASSWORD),
+      passwordHash: seedPasswordHash,
       role: 'RESELLER',
       active: true,
     },
@@ -281,7 +284,7 @@ async function main() {
     data: {
       companyId: companyB.id,
       email: 'bjorn@koksmontoren.se',
-      passwordHash: await hash(SEED_PASSWORD),
+      passwordHash: seedPasswordHash,
       role: 'RESELLER',
       active: true,
     },

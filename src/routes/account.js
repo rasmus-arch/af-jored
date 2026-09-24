@@ -46,8 +46,7 @@ router.post('/losenord', async (req, res, next) => {
   }
 });
 
-// Aktivera tvåstegsverifiering (frivilligt för återförsäljare, redan
-// obligatoriskt genomtvingat vid inloggning för admin).
+// Aktivera tvåstegsverifiering (frivilligt, för alla roller).
 router.get('/tva-stegsverifiering/installera', async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.session.user.id } });
@@ -98,16 +97,9 @@ router.post('/tva-stegsverifiering/installera', async (req, res, next) => {
   }
 });
 
-// Admin får aldrig inaktivera tvåstegsverifiering (obligatoriskt).
 router.post('/tva-stegsverifiering/inaktivera', async (req, res, next) => {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.session.user.id } });
-    if (user.role === 'ADMIN') {
-      return res.status(403).render('error', {
-        title: 'Åtgärden är inte tillåten',
-        message: 'Tvåstegsverifiering är obligatoriskt för administratörer och kan inte inaktiveras.',
-      });
-    }
 
     const validPassword = await argon2.verify(user.passwordHash, req.body.currentPassword || '').catch(() => false);
     if (!validPassword) {
