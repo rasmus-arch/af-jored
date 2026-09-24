@@ -8,6 +8,7 @@ const decorsRoutes = require('./decors');
 const edgeProfilesRoutes = require('./edgeProfiles');
 const addOnsRoutes = require('./addOns');
 const priceListsRoutes = require('./priceLists');
+const companiesRoutes = require('./companies');
 
 const router = express.Router();
 
@@ -24,5 +25,6 @@ router.use(decorsRoutes);
 router.use(edgeProfilesRoutes);
 router.use(addOnsRoutes);
 router.use(priceListsRoutes);
+router.use(companiesRoutes);
 
 module.exports = router;

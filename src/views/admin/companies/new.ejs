@@ -1,0 +1,39 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Ny återförsäljare</h1>
+  <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+
+  <form method="post" action="/admin/aterforsaljare" class="card">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+
+    <label for="name">Företagsnamn</label>
+    <input type="text" id="name" name="name" value="<%= values.name || '' %>" required />
+
+    <label for="orgNumber">Org.nr</label>
+    <input type="text" id="orgNumber" name="orgNumber" value="<%= values.orgNumber || '' %>" required />
+
+    <label for="street">Adress</label>
+    <input type="text" id="street" name="street" value="<%= values.street || '' %>" />
+
+    <label for="postalCode">Postnummer</label>
+    <input type="text" id="postalCode" name="postalCode" value="<%= values.postalCode || '' %>" />
+
+    <label for="city">Ort</label>
+    <input type="text" id="city" name="city" value="<%= values.city || '' %>" />
+
+    <label for="contactName">Kontaktperson</label>
+    <input type="text" id="contactName" name="contactName" value="<%= values.contactName || '' %>" />
+
+    <label for="contactEmail">Kontakt-e-post</label>
+    <input type="email" id="contactEmail" name="contactEmail" value="<%= values.contactEmail || '' %>" />
+
+    <label for="contactPhone">Kontakttelefon</label>
+    <input type="text" id="contactPhone" name="contactPhone" value="<%= values.contactPhone || '' %>" />
+
+    <label for="baseDiscountPercent">Grundrabatt i procent (valfritt)</label>
+    <input type="text" id="baseDiscountPercent" name="baseDiscountPercent" value="<%= values.baseDiscountPercent || '' %>" />
+
+    <button type="submit">Skapa återförsäljare</button>
+    <a class="button" style="background:#6b685f;margin-left:.5rem" href="/admin/aterforsaljare">Avbryt</a>
+  </form>
+<%- include('../../partials/footer') %>

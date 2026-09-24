@@ -1,0 +1,36 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Återförsäljare</h1>
+  <p><a class="button" href="/admin/aterforsaljare/nytt">Ny återförsäljare</a></p>
+
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th scope="col">Namn</th>
+        <th scope="col">Org.nr</th>
+        <th scope="col">Användare</th>
+        <th scope="col">Rabattregler</th>
+        <th scope="col">Status</th>
+        <th scope="col">Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% companies.forEach(c => { %>
+        <tr>
+          <td><a href="/admin/aterforsaljare/<%= c.id %>"><%= c.name %></a></td>
+          <td><%= c.orgNumber %></td>
+          <td><%= c._count.users %></td>
+          <td><%= c._count.discountRules %></td>
+          <td><span class="badge <%= c.active ? 'badge-active' : 'badge-inactive' %>"><%= c.active ? 'Aktiv' : 'Inaktiv' %></span></td>
+          <td>
+            <a href="/admin/aterforsaljare/<%= c.id %>">Öppna</a>
+            <form class="inline-form" method="post" action="/admin/aterforsaljare/<%= c.id %>/vaxla-aktiv">
+              <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+              <button class="button-link" type="submit"><%= c.active ? 'Inaktivera' : 'Aktivera' %></button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<%- include('../../partials/footer') %>

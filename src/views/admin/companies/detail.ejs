@@ -1,0 +1,181 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <p><a href="/admin/aterforsaljare">&larr; Alla återförsäljare</a></p>
+  <h1><%= company.name %></h1>
+  <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+
+  <div class="card">
+    <h2>Företagsuppgifter</h2>
+    <form method="post" action="/admin/aterforsaljare/<%= company.id %>">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="name">Företagsnamn</label>
+      <input type="text" id="name" name="name" value="<%= company.name %>" required />
+      <label for="orgNumber">Org.nr</label>
+      <input type="text" id="orgNumber" name="orgNumber" value="<%= company.orgNumber %>" required />
+      <label for="street">Adress</label>
+      <input type="text" id="street" name="street" value="<%= company.street || '' %>" />
+      <label for="postalCode">Postnummer</label>
+      <input type="text" id="postalCode" name="postalCode" value="<%= company.postalCode || '' %>" />
+      <label for="city">Ort</label>
+      <input type="text" id="city" name="city" value="<%= company.city || '' %>" />
+      <label for="contactName">Kontaktperson</label>
+      <input type="text" id="contactName" name="contactName" value="<%= company.contactName || '' %>" />
+      <label for="contactEmail">Kontakt-e-post</label>
+      <input type="email" id="contactEmail" name="contactEmail" value="<%= company.contactEmail || '' %>" />
+      <label for="contactPhone">Kontakttelefon</label>
+      <input type="text" id="contactPhone" name="contactPhone" value="<%= company.contactPhone || '' %>" />
+      <label for="baseDiscountPercent">Grundrabatt i procent (valfritt)</label>
+      <input type="text" id="baseDiscountPercent" name="baseDiscountPercent" value="<%= company.baseDiscountPercent != null ? company.baseDiscountPercent : '' %>" />
+      <p>Status: <span class="badge <%= company.active ? 'badge-active' : 'badge-inactive' %>"><%= company.active ? 'Aktiv' : 'Inaktiv' %></span></p>
+      <button type="submit">Spara</button>
+    </form>
+    <form method="post" action="/admin/aterforsaljare/<%= company.id %>/vaxla-aktiv" style="margin-top:.5rem">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <button type="submit" class="button-secondary"><%= company.active ? 'Inaktivera återförsäljare' : 'Aktivera återförsäljare' %></button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Användare</h2>
+    <table class="admin-table">
+      <thead><tr><th scope="col">E-post</th><th scope="col">Status</th><th scope="col">Senast inloggad</th><th scope="col">Åtgärd</th></tr></thead>
+      <tbody>
+        <% users.forEach(u => { %>
+          <tr>
+            <td><%= u.email %></td>
+            <td><span class="badge <%= u.active ? 'badge-active' : 'badge-inactive' %>"><%= u.active ? 'Aktiv' : 'Inaktiv' %></span></td>
+            <td><%= u.lastLoginAt ? u.lastLoginAt.toISOString().slice(0, 16).replace('T', ' ') : 'Aldrig' %></td>
+            <td>
+              <form class="inline-form" method="post" action="/admin/aterforsaljare/<%= company.id %>/anvandare/<%= u.id %>/vaxla-aktiv">
+                <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+                <button class="button-link" type="submit"><%= u.active ? 'Inaktivera' : 'Aktivera' %></button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <% if (inviteError) { %><p class="error-message" role="alert"><%= inviteError %></p><% } %>
+    <form method="post" action="/admin/aterforsaljare/<%= company.id %>/anvandare">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="inviteEmail">Bjud in ny användare (e-post)</label>
+      <input type="email" id="inviteEmail" name="email" required />
+      <button type="submit">Skicka inbjudan</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Rabattregler</h2>
+    <table class="admin-table">
+      <thead><tr><th scope="col">Material</th><th scope="col">Varumärke</th><th scope="col">Rabatt</th><th scope="col">Giltighet</th><th scope="col">Åtgärd</th></tr></thead>
+      <tbody>
+        <% discountRules.forEach(r => { %>
+          <tr>
+            <td><%= r.material ? r.material.name : 'Alla' %></td>
+            <td><%= r.brand ? r.brand.name : 'Alla' %></td>
+            <td><%= r.discountPercent.toFixed(2) %> %</td>
+            <td>
+              <%= r.validFrom ? r.validFrom.toISOString().slice(0,10) : '–' %>
+              &ndash;
+              <%= r.validTo ? r.validTo.toISOString().slice(0,10) : '–' %>
+            </td>
+            <td>
+              <form class="inline-form" method="post" action="/admin/aterforsaljare/<%= company.id %>/rabatter/<%= r.id %>/ta-bort">
+                <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+                <button class="button-link" type="submit">Ta bort</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <% if (discountError) { %><p class="error-message" role="alert"><%= discountError %></p><% } %>
+    <h3>Ny rabattregel</h3>
+    <p class="decor-meta">Mest specifika regeln gäller: material + varumärke &gt; enbart varumärke &gt; enbart material &gt; grundrabatt.</p>
+    <form method="post" action="/admin/aterforsaljare/<%= company.id %>/rabatter">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="ruleMaterialId">Material (valfritt)</label>
+      <select id="ruleMaterialId" name="materialId">
+        <option value="">Alla material</option>
+        <% materials.forEach(m => { %><option value="<%= m.id %>"><%= m.name %></option><% }) %>
+      </select>
+      <label for="ruleBrandId">Varumärke (valfritt)</label>
+      <select id="ruleBrandId" name="brandId">
+        <option value="">Alla varumärken</option>
+        <% brands.forEach(b => { %><option value="<%= b.id %>"><%= b.name %></option><% }) %>
+      </select>
+      <label for="discountPercent">Rabatt i procent</label>
+      <input type="text" id="discountPercent" name="discountPercent" required />
+      <label for="validFrom">Giltig från (valfritt)</label>
+      <input type="date" id="validFrom" name="validFrom" />
+      <label for="validTo">Giltig till (valfritt)</label>
+      <input type="date" id="validTo" name="validTo" />
+      <button type="submit">Lägg till regel</button>
+    </form>
+
+    <h3>Kopiera rabattregler från annan återförsäljare</h3>
+    <form method="post" action="/admin/aterforsaljare/<%= company.id %>/rabatter/kopiera">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="sourceCompanyId">Kopiera från</label>
+      <select id="sourceCompanyId" name="sourceCompanyId" required>
+        <% otherCompanies.forEach(c => { %><option value="<%= c.id %>"><%= c.name %></option><% }) %>
+      </select>
+      <button type="submit">Kopiera regler hit</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Förhandsvisning av prisberäkning</h2>
+    <form method="get" action="/admin/aterforsaljare/<%= company.id %>">
+      <label for="previewDecorId">Dekor</label>
+      <select id="previewDecorId" name="decorId" data-preview-decor>
+        <option value="">Välj dekor</option>
+        <% allDecors.forEach(d => { %>
+          <option value="<%= d.id %>" <%= String(previewQuery.decorId) === String(d.id) ? 'selected' : '' %>><%= d.articleCode %> – <%= d.name %></option>
+        <% }) %>
+      </select>
+      <label for="previewThicknessId">Tjocklek</label>
+      <select id="previewThicknessId" name="thicknessId" data-preview-thickness>
+        <option value="">Välj tjocklek</option>
+        <% allDecors.forEach(d => { %>
+          <% d.decorThicknesses.forEach(dt => { %>
+            <option value="<%= dt.thickness.id %>" data-decor="<%= d.id %>" <%= String(previewQuery.thicknessId) === String(dt.thickness.id) ? 'selected' : '' %>><%= dt.thickness.valueMm %> mm</option>
+          <% }) %>
+        <% }) %>
+      </select>
+      <label for="previewDepthMm">Djup (mm)</label>
+      <input type="number" id="previewDepthMm" name="depthMm" value="<%= previewQuery.depthMm || '' %>" required />
+      <label for="previewLengthMm">Längd (mm)</label>
+      <input type="number" id="previewLengthMm" name="lengthMm" value="<%= previewQuery.lengthMm || '' %>" required />
+      <button type="submit">Visa beräkning</button>
+    </form>
+
+    <% if (previewError) { %><p class="error-message" role="alert"><%= previewError %></p><% } %>
+    <% if (preview) { %>
+      <table class="admin-table">
+        <tbody>
+          <tr><th scope="row">Dekor</th><td><%= preview.decor.articleCode %> – <%= preview.decor.name %></td></tr>
+          <tr><th scope="row">Rekommenderat pris</th><td><%= preview.line.recommendedPrice.toFixed(2) %> kr</td></tr>
+          <tr><th scope="row">Inköpspris</th><td><%= preview.line.purchasePrice.toFixed(2) %> kr</td></tr>
+          <tr><th scope="row">Tillämpad regel</th>
+            <td>
+              <% if (preview.line.usedNetPriceOverride) { %>
+                Fast nettopris
+              <% } else if (preview.line.discount.matchedOn === 'none') { %>
+                Ingen rabatt
+              <% } else { %>
+                <%= preview.line.discount.percent.toFixed(2) %> % (<%=
+                  { 'material+brand': 'material + varumärke', brand: 'varumärke', material: 'material', base: 'grundrabatt' }[preview.line.discount.matchedOn]
+                %>)
+              <% } %>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+
+  <script src="/js/preview-filter.js"></script>
+<%- include('../../partials/footer') %>
