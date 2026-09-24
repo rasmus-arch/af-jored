@@ -1,0 +1,7 @@
+<%- include('../partials/head', { title }) %>
+  <h1>Min sida</h1>
+  <p>Inloggad som <strong><%= user.email %></strong><% if (company) { %> hos <strong><%= company.name %></strong><% } %>.</p>
+  <div class="card">
+    <p>Här kommer sortiment, priskalkylator, dokumentarkiv och nyheter att byggas ut i kommande faser.</p>
+  </div>
+<%- include('../partials/footer') %>

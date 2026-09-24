@@ -1,0 +1,498 @@
+// Datamodell för Joreds återförsäljarportal.
+// Se README.md för installations- och migreringsinstruktioner.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Behörighet och konton
+// ---------------------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  RESELLER
+}
+
+model Company {
+  id                  Int      @id @default(autoincrement())
+  name                String
+  orgNumber           String   @map("org_number")
+  street              String?
+  postalCode          String?  @map("postal_code")
+  city                String?
+  contactName         String?  @map("contact_name")
+  contactEmail        String?  @map("contact_email")
+  contactPhone        String?  @map("contact_phone")
+  // Grundrabatt utan giltighetsperiod i första versionen. Om giltighetstid
+  // behövs senare, migrera till en DiscountRule-rad med materialId/brandId = null
+  // och validFrom/validTo satta, och fasa ut detta fält.
+  baseDiscountPercent Decimal? @map("base_discount_percent") @db.Decimal(5, 2)
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  users             User[]
+  discountRules     DiscountRule[]
+  netPriceOverrides NetPriceOverride[]
+  invitations       Invitation[]
+  documentCompanies DocumentCompany[]
+  productViews      ProductView[]
+
+  @@map("companies")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  companyId    Int?      @map("company_id")
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role
+  totpSecret   String?   @map("totp_secret")
+  totpEnabled  Boolean   @default(false) @map("totp_enabled")
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  company             Company?             @relation(fields: [companyId], references: [id])
+  passwordResetTokens PasswordResetToken[]
+  auditLogs           AuditLog[]
+  productViews        ProductView[]
+  invitationsSent     Invitation[]         @relation("InvitationSentBy")
+
+  @@index([companyId])
+  @@map("users")
+}
+
+model Invitation {
+  id          Int       @id @default(autoincrement())
+  companyId   Int       @map("company_id")
+  email       String
+  role        Role
+  token       String    @unique
+  expiresAt   DateTime  @map("expires_at")
+  acceptedAt  DateTime? @map("accepted_at")
+  invitedById Int?      @map("invited_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  company   Company @relation(fields: [companyId], references: [id])
+  invitedBy User?   @relation("InvitationSentBy", fields: [invitedById], references: [id])
+
+  @@index([companyId])
+  @@map("invitations")
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  token     String    @unique
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// Generisk logg för inloggningar och ändringar (täcker "logg över inloggningar
+// och ändringar" samt prisändringshistorik: vem, när, från vad, till vad).
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?     @map("user_id")
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   Int?     @map("entity_id")
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Sortiment
+// ---------------------------------------------------------------------------
+
+enum DecorStatus {
+  AKTIV
+  UTGAENDE
+  UTGATT
+}
+
+enum PriceUnit {
+  STYCK
+  LOPMETER
+}
+
+model DecorCategory {
+  id        Int     @id @default(autoincrement())
+  name      String
+  sortOrder Int     @default(0) @map("sort_order")
+  active    Boolean @default(true)
+
+  decors Decor[]
+
+  @@map("decor_categories")
+}
+
+model Material {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?  @db.Text
+  imageUrl    String?  @map("image_url")
+  sortOrder   Int      @default(0) @map("sort_order")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  thicknesses                Thickness[]
+  decors                     Decor[]
+  priceRows                  CountertopPriceRow[]
+  edgeProfileCompatibilities EdgeProfileCompatibility[]
+  addOnMaterials             AddOnMaterial[]
+  discountRules              DiscountRule[]
+
+  @@map("materials")
+}
+
+model Brand {
+  id      Int     @id @default(autoincrement())
+  name    String
+  logoUrl String? @map("logo_url")
+  active  Boolean @default(true)
+
+  decors        Decor[]
+  discountRules DiscountRule[]
+
+  @@map("brands")
+}
+
+model Decor {
+  id             Int         @id @default(autoincrement())
+  materialId     Int         @map("material_id")
+  brandId        Int         @map("brand_id")
+  categoryId     Int         @map("category_id")
+  articleCode    String      @unique @map("article_code")
+  name           String
+  surfaceTexture String?     @map("surface_texture")
+  maxLengthMm    Int?        @map("max_length_mm")
+  imageUrl       String?     @map("image_url")
+  status         DecorStatus @default(AKTIV)
+  notes          String?     @db.Text
+  sortOrder      Int         @default(0) @map("sort_order")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  material Material      @relation(fields: [materialId], references: [id])
+  brand    Brand         @relation(fields: [brandId], references: [id])
+  category DecorCategory @relation(fields: [categoryId], references: [id])
+
+  decorThicknesses  DecorThickness[]
+  netPriceOverrides NetPriceOverride[]
+  productViews      ProductView[]
+
+  @@index([materialId])
+  @@index([brandId])
+  @@map("decors")
+}
+
+model Thickness {
+  id         Int     @id @default(autoincrement())
+  materialId Int     @map("material_id")
+  valueMm    Int     @map("value_mm")
+  sortOrder  Int     @default(0) @map("sort_order")
+  active     Boolean @default(true)
+
+  material Material @relation(fields: [materialId], references: [id])
+
+  decorThicknesses           DecorThickness[]
+  priceRows                  CountertopPriceRow[]
+  edgeProfileCompatibilities EdgeProfileCompatibility[]
+  addOnPrices                AddOnPrice[]
+  edgeProfilePrices          EdgeProfilePrice[]
+  netPriceOverrides          NetPriceOverride[]
+
+  @@unique([materialId, valueMm])
+  @@map("thicknesses")
+}
+
+// Vilka dekor+tjocklek-kombinationer som faktiskt finns.
+model DecorThickness {
+  id          Int     @id @default(autoincrement())
+  decorId     Int     @map("decor_id")
+  thicknessId Int     @map("thickness_id")
+  active      Boolean @default(true)
+
+  decor     Decor     @relation(fields: [decorId], references: [id])
+  thickness Thickness @relation(fields: [thicknessId], references: [id])
+
+  @@unique([decorId, thicknessId])
+  @@map("decor_thicknesses")
+}
+
+// Kantprofil är knuten till material och tjocklek (beslutat: inga undantag per dekor).
+model EdgeProfile {
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String? @db.Text
+  imageUrl    String? @map("image_url")
+  active      Boolean @default(true)
+
+  compatibilities EdgeProfileCompatibility[]
+  prices          EdgeProfilePrice[]
+
+  @@map("edge_profiles")
+}
+
+model EdgeProfileCompatibility {
+  id            Int @id @default(autoincrement())
+  edgeProfileId Int @map("edge_profile_id")
+  materialId    Int @map("material_id")
+  thicknessId   Int @map("thickness_id")
+
+  edgeProfile EdgeProfile @relation(fields: [edgeProfileId], references: [id])
+  material    Material    @relation(fields: [materialId], references: [id])
+  thickness   Thickness   @relation(fields: [thicknessId], references: [id])
+
+  @@unique([edgeProfileId, materialId, thicknessId])
+  @@map("edge_profile_compatibilities")
+}
+
+model AddOn {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?   @db.Text
+  priceUnit   PriceUnit @map("price_unit")
+  active      Boolean   @default(true)
+
+  materials AddOnMaterial[]
+  prices    AddOnPrice[]
+
+  @@map("add_ons")
+}
+
+model AddOnMaterial {
+  id         Int @id @default(autoincrement())
+  addOnId    Int @map("add_on_id")
+  materialId Int @map("material_id")
+
+  addOn    AddOn    @relation(fields: [addOnId], references: [id])
+  material Material @relation(fields: [materialId], references: [id])
+
+  @@unique([addOnId, materialId])
+  @@map("add_on_materials")
+}
+
+// ---------------------------------------------------------------------------
+// Priser
+// ---------------------------------------------------------------------------
+
+// En "omgång" priser som blir gällande från och med sitt datum, så nästa års
+// priser kan förberedas utan att synas i förtid.
+model PriceList {
+  id          Int      @id @default(autoincrement())
+  name        String
+  validFrom   DateTime @map("valid_from")
+  createdById Int?     @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  countertopRows    CountertopPriceRow[]
+  edgeProfilePrices EdgeProfilePrice[]
+  addOnPrices       AddOnPrice[]
+
+  @@index([validFrom])
+  @@map("price_lists")
+}
+
+model CountertopPriceRow {
+  id            Int      @id @default(autoincrement())
+  priceListId   Int      @map("price_list_id")
+  materialId    Int      @map("material_id")
+  thicknessId   Int      @map("thickness_id")
+  depthFromMm   Int      @map("depth_from_mm")
+  depthToMm     Int      @map("depth_to_mm")
+  pricePerMeter Decimal  @map("price_per_meter") @db.Decimal(10, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  priceList PriceList @relation(fields: [priceListId], references: [id])
+  material  Material  @relation(fields: [materialId], references: [id])
+  thickness Thickness @relation(fields: [thicknessId], references: [id])
+
+  @@index([priceListId, materialId, thicknessId])
+  @@map("countertop_price_rows")
+}
+
+model EdgeProfilePrice {
+  id            Int      @id @default(autoincrement())
+  priceListId   Int      @map("price_list_id")
+  edgeProfileId Int      @map("edge_profile_id")
+  thicknessId   Int?     @map("thickness_id")
+  price         Decimal  @db.Decimal(10, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  priceList   PriceList   @relation(fields: [priceListId], references: [id])
+  edgeProfile EdgeProfile @relation(fields: [edgeProfileId], references: [id])
+  thickness   Thickness?  @relation(fields: [thicknessId], references: [id])
+
+  @@index([priceListId, edgeProfileId])
+  @@map("edge_profile_prices")
+}
+
+model AddOnPrice {
+  id          Int      @id @default(autoincrement())
+  priceListId Int      @map("price_list_id")
+  addOnId     Int      @map("add_on_id")
+  thicknessId Int?     @map("thickness_id")
+  price       Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  priceList PriceList  @relation(fields: [priceListId], references: [id])
+  addOn     AddOn      @relation(fields: [addOnId], references: [id])
+  thickness Thickness? @relation(fields: [thicknessId], references: [id])
+
+  @@index([priceListId, addOnId])
+  @@map("add_on_prices")
+}
+
+// ---------------------------------------------------------------------------
+// Rabatter och inköpspris
+// ---------------------------------------------------------------------------
+
+// Mest specifika regel gäller: material+brand > brand > material > grundrabatt.
+// Ingen giltighetsperiod krävs i första versionen, men validFrom/validTo finns
+// redan med så att tidsbegränsade rabatter kan läggas till senare utan
+// schemaändring.
+model DiscountRule {
+  id              Int       @id @default(autoincrement())
+  companyId       Int       @map("company_id")
+  materialId      Int?      @map("material_id")
+  brandId         Int?      @map("brand_id")
+  discountPercent Decimal   @map("discount_percent") @db.Decimal(5, 2)
+  validFrom       DateTime? @map("valid_from")
+  validTo         DateTime? @map("valid_to")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  material Material? @relation(fields: [materialId], references: [id])
+  brand    Brand?    @relation(fields: [brandId], references: [id])
+
+  @@index([companyId, materialId, brandId])
+  @@map("discount_rules")
+}
+
+// Fast nettopris per återförsäljare för en specifik artikel (dekor + tjocklek)
+// och djupintervall. Går före procentrabatt.
+model NetPriceOverride {
+  id               Int       @id @default(autoincrement())
+  companyId        Int       @map("company_id")
+  decorId          Int       @map("decor_id")
+  thicknessId      Int       @map("thickness_id")
+  depthFromMm      Int       @map("depth_from_mm")
+  depthToMm        Int       @map("depth_to_mm")
+  netPricePerMeter Decimal   @map("net_price_per_meter") @db.Decimal(10, 2)
+  validFrom        DateTime? @map("valid_from")
+  validTo          DateTime? @map("valid_to")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  decor     Decor     @relation(fields: [decorId], references: [id])
+  thickness Thickness @relation(fields: [thicknessId], references: [id])
+
+  @@index([companyId, decorId, thicknessId])
+  @@map("net_price_overrides")
+}
+
+// ---------------------------------------------------------------------------
+// Innehåll
+// ---------------------------------------------------------------------------
+
+enum DocumentCategory {
+  PRISLISTA
+  MONTERINGSANVISNING
+  GARANTIVILLKOR
+  MARKNADSMATERIAL
+}
+
+enum DocumentVisibility {
+  ALLA
+  SPECIFIKA
+}
+
+model NewsPost {
+  id          Int       @id @default(autoincrement())
+  title       String
+  body        String    @db.Text
+  publishedAt DateTime? @map("published_at")
+  active      Boolean   @default(true)
+  createdById Int?      @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("news_posts")
+}
+
+model Document {
+  id          Int                @id @default(autoincrement())
+  title       String
+  fileUrl     String             @map("file_url")
+  category    DocumentCategory
+  visibility  DocumentVisibility @default(ALLA)
+  createdById Int?               @map("created_by_id")
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  companies DocumentCompany[]
+
+  @@map("documents")
+}
+
+model DocumentCompany {
+  id         Int @id @default(autoincrement())
+  documentId Int @map("document_id")
+  companyId  Int @map("company_id")
+
+  document Document @relation(fields: [documentId], references: [id])
+  company  Company  @relation(fields: [companyId], references: [id])
+
+  @@unique([documentId, companyId])
+  @@map("document_companies")
+}
+
+// Enkel statistik: vilka produkter som visas mest.
+model ProductView {
+  id        Int      @id @default(autoincrement())
+  decorId   Int      @map("decor_id")
+  companyId Int?     @map("company_id")
+  userId    Int?     @map("user_id")
+  viewedAt  DateTime @default(now()) @map("viewed_at")
+
+  decor   Decor    @relation(fields: [decorId], references: [id])
+  company Company? @relation(fields: [companyId], references: [id])
+  user    User?    @relation(fields: [userId], references: [id])
+
+  @@index([decorId])
+  @@map("product_views")
+}
+
+// Global inställning (singleton, id = 1), t.ex. momssats.
+model Settings {
+  id            Int      @id @default(autoincrement())
+  vatPercentage Decimal  @default(25.00) @map("vat_percentage") @db.Decimal(5, 2)
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}

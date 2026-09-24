@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= title %> – Joreds återförsäljarportal</title>
+  <link rel="stylesheet" href="/css/theme.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="logo" href="/">Joreds återförsäljarportal</a>
+    <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+      <form method="post" action="/logga-ut">
+        <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+        <button type="submit">Logga ut</button>
+      </form>
+    <% } %>
+  </header>
+  <main class="site-main">
