@@ -1,6 +1,6 @@
 const express = require('express');
 const { hashPassword, verifyPassword } = require('../lib/passwordHash');
-const prisma = require('../lib/prisma');
+const { findUserById, updateUser, createAuditLog } = require('../services/users');
 const totp = require('../lib/totp');
 const { requireAuth } = require('../middleware/auth');
 
@@ -10,7 +10,7 @@ router.use(requireAuth);
 
 router.get('/', async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.session.user.id } });
+    const user = await findUserById(req.session.user.id);
     res.render('account/index', {
       title: 'Mitt konto',
       user,
@@ -24,7 +24,7 @@ router.get('/', async (req, res, next) => {
 
 router.post('/losenord', async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.session.user.id } });
+    const user = await findUserById(req.session.user.id);
     const { currentPassword, newPassword, newPasswordConfirm } = req.body;
 
     const render = (error, success = false) =>
@@ -37,8 +37,8 @@ router.post('/losenord', async (req, res, next) => {
     if (newPassword !== newPasswordConfirm) return render('De nya lösenorden matchar inte.');
 
     const passwordHash = await hashPassword(newPassword);
-    await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
-    await prisma.auditLog.create({ data: { userId: user.id, action: 'PASSWORD_CHANGED', ipAddress: req.ip } });
+    await updateUser(user.id, { passwordHash });
+    await createAuditLog({ userId: user.id, action: 'PASSWORD_CHANGED', ipAddress: req.ip });
 
     res.render('account/index', { title: 'Mitt konto', user, passwordError: null, passwordSuccess: true });
   } catch (err) {
@@ -49,7 +49,7 @@ router.post('/losenord', async (req, res, next) => {
 // Aktivera tvåstegsverifiering (frivilligt, för alla roller).
 router.get('/tva-stegsverifiering/installera', async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.session.user.id } });
+    const user = await findUserById(req.session.user.id);
     if (user.totpEnabled) return res.redirect('/konto');
 
     if (!req.session.accountTotpSecret) {
@@ -70,7 +70,7 @@ router.get('/tva-stegsverifiering/installera', async (req, res, next) => {
 
 router.post('/tva-stegsverifiering/installera', async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.session.user.id } });
+    const user = await findUserById(req.session.user.id);
     if (user.totpEnabled || !req.session.accountTotpSecret) return res.redirect('/konto');
 
     const valid = totp.verifyToken(req.session.accountTotpSecret, req.body.code);
@@ -84,12 +84,9 @@ router.post('/tva-stegsverifiering/installera', async (req, res, next) => {
       });
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { totpSecret: req.session.accountTotpSecret, totpEnabled: true },
-    });
+    await updateUser(user.id, { totpSecret: req.session.accountTotpSecret, totpEnabled: true });
     delete req.session.accountTotpSecret;
-    await prisma.auditLog.create({ data: { userId: user.id, action: 'TOTP_ENABLED', ipAddress: req.ip } });
+    await createAuditLog({ userId: user.id, action: 'TOTP_ENABLED', ipAddress: req.ip });
 
     res.redirect('/konto');
   } catch (err) {
@@ -99,7 +96,7 @@ router.post('/tva-stegsverifiering/installera', async (req, res, next) => {
 
 router.post('/tva-stegsverifiering/inaktivera', async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.session.user.id } });
+    const user = await findUserById(req.session.user.id);
 
     const validPassword = await verifyPassword(user.passwordHash, req.body.currentPassword || '').catch(() => false);
     if (!validPassword) {
@@ -112,8 +109,8 @@ router.post('/tva-stegsverifiering/inaktivera', async (req, res, next) => {
       });
     }
 
-    await prisma.user.update({ where: { id: user.id }, data: { totpEnabled: false, totpSecret: null } });
-    await prisma.auditLog.create({ data: { userId: user.id, action: 'TOTP_DISABLED', ipAddress: req.ip } });
+    await updateUser(user.id, { totpEnabled: false, totpSecret: null });
+    await createAuditLog({ userId: user.id, action: 'TOTP_DISABLED', ipAddress: req.ip });
     res.redirect('/konto');
   } catch (err) {
     next(err);

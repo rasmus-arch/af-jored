@@ -1,15 +1,28 @@
 const express = require('express');
 const { hashPassword } = require('../../lib/passwordHash');
-const prisma = require('../../lib/prisma');
+const { query, mapRow, withTransaction } = require('../../lib/db');
+const { upsertUserByEmail } = require('../../services/users');
 
 const router = express.Router();
 
+async function findInvitationByToken(token) {
+  const rows = await query(
+    `SELECT i.*, c.id AS c_id, c.name AS c_name
+     FROM invitations i
+     JOIN companies c ON c.id = i.company_id
+     WHERE i.token = ?`,
+    [token]
+  );
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  const invitation = mapRow(row);
+  invitation.company = { id: row.c_id, name: row.c_name };
+  return invitation;
+}
+
 router.get('/bjudits-in/:token', async (req, res, next) => {
   try {
-    const invitation = await prisma.invitation.findUnique({
-      where: { token: req.params.token },
-      include: { company: true },
-    });
+    const invitation = await findInvitationByToken(req.params.token);
 
     if (!invitation || invitation.acceptedAt || invitation.expiresAt < new Date()) {
       return res.status(400).render('error', {
@@ -26,10 +39,7 @@ router.get('/bjudits-in/:token', async (req, res, next) => {
 
 router.post('/bjudits-in/:token', async (req, res, next) => {
   try {
-    const invitation = await prisma.invitation.findUnique({
-      where: { token: req.params.token },
-      include: { company: true },
-    });
+    const invitation = await findInvitationByToken(req.params.token);
 
     if (!invitation || invitation.acceptedAt || invitation.expiresAt < new Date()) {
       return res.status(400).render('error', {
@@ -56,20 +66,14 @@ router.post('/bjudits-in/:token', async (req, res, next) => {
 
     const passwordHash = await hashPassword(password);
 
-    await prisma.$transaction([
-      prisma.user.upsert({
-        where: { email: invitation.email },
-        create: {
-          email: invitation.email,
-          passwordHash,
-          role: invitation.role,
-          companyId: invitation.companyId,
-          active: true,
-        },
-        update: { passwordHash, active: true },
-      }),
-      prisma.invitation.update({ where: { id: invitation.id }, data: { acceptedAt: new Date() } }),
-    ]);
+    await withTransaction(async (conn) => {
+      await upsertUserByEmail(
+        invitation.email,
+        { passwordHash, role: invitation.role, companyId: invitation.companyId, active: true },
+        conn
+      );
+      await query('UPDATE invitations SET accepted_at = NOW() WHERE id = ?', [invitation.id], conn);
+    });
 
     res.render('auth/accept-invitation-done', { title: 'Klart' });
   } catch (err) {

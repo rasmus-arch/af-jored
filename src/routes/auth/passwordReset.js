@@ -1,12 +1,18 @@
 const express = require('express');
 const { hashPassword } = require('../../lib/passwordHash');
-const prisma = require('../../lib/prisma');
+const { query, mapRow, withTransaction } = require('../../lib/db');
+const { findUserByEmail, updateUser } = require('../../services/users');
 const config = require('../../config');
 const { generateToken } = require('../../lib/tokens');
 const { sendPasswordResetEmail } = require('../../lib/mailer');
 const { loginLimiter } = require('../../middleware/rateLimit');
 
 const router = express.Router();
+
+async function findResetTokenByToken(token) {
+  const rows = await query('SELECT * FROM password_reset_tokens WHERE token = ?', [token]);
+  return mapRow(rows[0]) || null;
+}
 
 router.get('/glomt-losenord', (req, res) => {
   res.render('auth/forgot-password', { title: 'Glömt lösenord', sent: false, error: null });
@@ -16,13 +22,17 @@ router.post('/glomt-losenord', loginLimiter, async (req, res, next) => {
   try {
     const email = (req.body.email || '').toLowerCase().trim();
     if (email) {
-      const user = await prisma.user.findUnique({ where: { email } });
+      const user = await findUserByEmail(email);
       // Skicka alltid samma bekräftelse, oavsett om kontot finns, så att man
       // inte kan ta reda på vilka e-postadresser som är registrerade.
       if (user && user.active) {
         const token = generateToken();
         const expiresAt = new Date(Date.now() + config.passwordResetExpiryHours * 60 * 60 * 1000);
-        await prisma.passwordResetToken.create({ data: { userId: user.id, token, expiresAt } });
+        await query('INSERT INTO password_reset_tokens (user_id, token, expires_at, created_at) VALUES (?, ?, ?, NOW())', [
+          user.id,
+          token,
+          expiresAt,
+        ]);
         const url = `${config.appBaseUrl}/aterstall-losenord/${token}`;
         await sendPasswordResetEmail({ to: user.email, url });
       }
@@ -35,7 +45,7 @@ router.post('/glomt-losenord', loginLimiter, async (req, res, next) => {
 
 router.get('/aterstall-losenord/:token', async (req, res, next) => {
   try {
-    const resetToken = await prisma.passwordResetToken.findUnique({ where: { token: req.params.token } });
+    const resetToken = await findResetTokenByToken(req.params.token);
     if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
       return res.status(400).render('error', {
         title: 'Ogiltig länk',
@@ -50,7 +60,7 @@ router.get('/aterstall-losenord/:token', async (req, res, next) => {
 
 router.post('/aterstall-losenord/:token', async (req, res, next) => {
   try {
-    const resetToken = await prisma.passwordResetToken.findUnique({ where: { token: req.params.token } });
+    const resetToken = await findResetTokenByToken(req.params.token);
     if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
       return res.status(400).render('error', {
         title: 'Ogiltig länk',
@@ -75,10 +85,10 @@ router.post('/aterstall-losenord/:token', async (req, res, next) => {
     }
 
     const passwordHash = await hashPassword(password);
-    await prisma.$transaction([
-      prisma.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
-      prisma.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
-    ]);
+    await withTransaction(async (conn) => {
+      await updateUser(resetToken.userId, { passwordHash }, conn);
+      await query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = ?', [resetToken.id], conn);
+    });
 
     res.render('auth/reset-password-done', { title: 'Lösenord uppdaterat' });
   } catch (err) {

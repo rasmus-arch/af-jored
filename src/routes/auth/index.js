@@ -1,6 +1,6 @@
 const express = require('express');
 const { verifyPassword, needsRehash, hashPassword } = require('../../lib/passwordHash');
-const prisma = require('../../lib/prisma');
+const { findUserByEmail, findUserById, updateUser, createAuditLog } = require('../../services/users');
 const totp = require('../../lib/totp');
 const { loginLimiter } = require('../../middleware/rateLimit');
 const invitationRoutes = require('./invitation');
@@ -20,8 +20,8 @@ async function completeLogin(req, res, user) {
     companyId: user.companyId,
   };
 
-  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-  await prisma.auditLog.create({ data: { userId: user.id, action: 'LOGIN', ipAddress: req.ip } });
+  await updateUser(user.id, { lastLoginAt: new Date() });
+  await createAuditLog({ userId: user.id, action: 'LOGIN', ipAddress: req.ip });
 
   res.redirect(user.role === 'ADMIN' ? '/admin' : '/portal');
 }
@@ -43,7 +43,7 @@ router.post('/logga-in', loginLimiter, async (req, res, next) => {
       return res.status(400).render('auth/login', { title: 'Logga in', error: genericError, email });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await findUserByEmail(email);
 
     // Kör alltid en hash-verifiering, även om användaren saknas, för att inte
     // läcka via svarstid vilka e-postadresser som finns registrerade.
@@ -52,7 +52,7 @@ router.post('/logga-in', loginLimiter, async (req, res, next) => {
     const valid = await verifyPassword(passwordHash, password).catch(() => false);
 
     if (!user || !user.active || !valid) {
-      await prisma.auditLog.create({ data: { action: 'LOGIN_FAILED', ipAddress: req.ip, newValue: { email } } });
+      await createAuditLog({ action: 'LOGIN_FAILED', ipAddress: req.ip, newValue: { email } });
       return res.status(401).render('auth/login', { title: 'Logga in', error: genericError, email });
     }
 
@@ -61,7 +61,7 @@ router.post('/logga-in', loginLimiter, async (req, res, next) => {
     // användaren behöver göra något.
     if (needsRehash(passwordHash)) {
       const rehashed = await hashPassword(password);
-      await prisma.user.update({ where: { id: user.id }, data: { passwordHash: rehashed } });
+      await updateUser(user.id, { passwordHash: rehashed });
     }
 
     if (user.totpEnabled) {
@@ -86,7 +86,7 @@ router.get('/logga-in/verifiera', (req, res) => {
 router.post('/logga-in/verifiera', loginLimiter, async (req, res, next) => {
   try {
     if (!req.session.pendingUserId) return res.redirect('/logga-in');
-    const user = await prisma.user.findUnique({ where: { id: req.session.pendingUserId } });
+    const user = await findUserById(req.session.pendingUserId);
     if (!user || !user.active || !user.totpEnabled) return res.redirect('/logga-in');
 
     const valid = totp.verifyToken(user.totpSecret, req.body.code);

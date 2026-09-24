@@ -1,26 +1,4 @@
-const { query } = require('../lib/db');
-
-// Prisma exponerade alltid fältnamn i camelCase (utifrån @map-direktiven i
-// schema.prisma) även om kolumnerna i databasen är snake_case. mapRow/mapRows
-// gör samma omvandling på raka mysql2-rader, så resten av appen (routes,
-// vyer) kan fortsätta läsa t.ex. `decor.articleCode` och `decor.materialId`
-// utan ändringar.
-function toCamel(key) {
-  return key.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
-}
-
-function mapRow(row) {
-  if (!row) return row;
-  const mapped = {};
-  for (const [key, value] of Object.entries(row)) {
-    mapped[toCamel(key)] = value;
-  }
-  return mapped;
-}
-
-function mapRows(rows) {
-  return rows.map(mapRow);
-}
+const { query, mapRow, mapRows } = require('../lib/db');
 
 async function getCurrentPriceList(asOf = new Date()) {
   const rows = await query(
