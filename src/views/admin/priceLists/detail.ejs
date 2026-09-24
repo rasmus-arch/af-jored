@@ -1,0 +1,167 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <p><a href="/admin/prislistor">&larr; Alla prislistor</a></p>
+  <h1><%= priceList.name %></h1>
+  <p class="decor-meta">Giltig från <%= priceList.validFrom.toISOString().slice(0, 10) %></p>
+
+  <% if (rowError) { %><p class="error-message" role="alert"><%= rowError %></p><% } %>
+  <% if (hojError) { %><p class="error-message" role="alert"><%= hojError %></p><% } %>
+  <% if (gapWarnings.length > 0) { %>
+    <div class="card">
+      <p><strong>Varning:</strong> det finns luckor i djupintervallen:</p>
+      <ul>
+        <% gapWarnings.forEach(w => { %><li><%= w %></li><% }) %>
+      </ul>
+    </div>
+  <% } %>
+
+  <div class="card">
+    <h2>Bänkskiverader</h2>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th scope="col">Material</th>
+          <th scope="col">Tjocklek</th>
+          <th scope="col">Djup (mm)</th>
+          <th scope="col">Kr/lm</th>
+          <th scope="col">Åtgärder</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% rows.forEach(r => { %>
+          <form id="rowform-<%= r.id %>" method="post" action="/admin/prislistor/<%= priceList.id %>/rader/<%= r.id %>/uppdatera" hidden></form>
+          <tr>
+            <td><%= r.material.name %></td>
+            <td><%= r.thickness.valueMm %> mm</td>
+            <td>
+              <input form="rowform-<%= r.id %>" type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+              <input form="rowform-<%= r.id %>" type="number" name="depthFromMm" value="<%= r.depthFromMm %>" style="width:5rem" aria-label="Djup från" />
+              &ndash;
+              <input form="rowform-<%= r.id %>" type="number" name="depthToMm" value="<%= r.depthToMm %>" style="width:5rem" aria-label="Djup till" />
+            </td>
+            <td><input form="rowform-<%= r.id %>" type="text" name="pricePerMeter" value="<%= r.pricePerMeter.toFixed(2) %>" style="width:6rem" aria-label="Kr per löpmeter" /></td>
+            <td>
+              <button form="rowform-<%= r.id %>" type="submit">Spara</button>
+              <form class="inline-form" method="post" action="/admin/prislistor/<%= priceList.id %>/rader/<%= r.id %>/ta-bort">
+                <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+                <button class="button-link" type="submit">Ta bort</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <h3>Ny prisrad</h3>
+    <form method="post" action="/admin/prislistor/<%= priceList.id %>/rader">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="materialId">Material</label>
+      <select id="materialId" name="materialId" data-thickness-filter="thicknessId" required>
+        <option value="">Välj material</option>
+        <% materials.forEach(m => { %><option value="<%= m.id %>"><%= m.name %></option><% }) %>
+      </select>
+
+      <label for="thicknessId">Tjocklek</label>
+      <select id="thicknessId" name="thicknessId" required>
+        <option value="">Välj material först</option>
+        <% materials.forEach(m => { %>
+          <% m.thicknesses.forEach(t => { %>
+            <option value="<%= t.id %>" data-material="<%= m.id %>"><%= m.name %> - <%= t.valueMm %> mm</option>
+          <% }) %>
+        <% }) %>
+      </select>
+
+      <label for="depthFromMm">Djup från (mm)</label>
+      <input type="number" id="depthFromMm" name="depthFromMm" min="0" required />
+      <label for="depthToMm">Djup till (mm)</label>
+      <input type="number" id="depthToMm" name="depthToMm" min="0" required />
+      <label for="pricePerMeter">Kr per löpmeter</label>
+      <input type="text" id="pricePerMeter" name="pricePerMeter" required />
+
+      <button type="submit">Lägg till rad</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Kantprofilpriser</h2>
+    <table class="admin-table">
+      <thead><tr><th scope="col">Kantprofil</th><th scope="col">Tjocklek</th><th scope="col">Pris</th></tr></thead>
+      <tbody>
+        <% edgePrices.forEach(p => { %>
+          <tr>
+            <td><%= p.edgeProfile.name %></td>
+            <td><%= p.thickness ? p.thickness.valueMm + ' mm' : 'Alla tjocklekar' %></td>
+            <td><%= p.price.toFixed(2) %> kr</td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <form method="post" action="/admin/prislistor/<%= priceList.id %>/kantprofilpriser">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="edgeProfileId">Kantprofil</label>
+      <select id="edgeProfileId" name="edgeProfileId" required>
+        <% edgeProfiles.forEach(p => { %><option value="<%= p.id %>"><%= p.name %> (<%= p.priceUnit === 'LOPMETER' ? 'kr/lm' : 'kr/st' %>)</option><% }) %>
+      </select>
+      <label for="edgeThicknessId">Tjocklek (valfritt)</label>
+      <select id="edgeThicknessId" name="thicknessId">
+        <option value="">Alla tjocklekar</option>
+        <% materials.forEach(m => { %>
+          <% m.thicknesses.forEach(t => { %><option value="<%= t.id %>"><%= m.name %> - <%= t.valueMm %> mm</option><% }) %>
+        <% }) %>
+      </select>
+      <label for="edgePrice">Pris</label>
+      <input type="text" id="edgePrice" name="price" required />
+      <button type="submit">Spara pris</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Tillvalspriser</h2>
+    <table class="admin-table">
+      <thead><tr><th scope="col">Tillval</th><th scope="col">Tjocklek</th><th scope="col">Pris</th></tr></thead>
+      <tbody>
+        <% addOnPrices.forEach(p => { %>
+          <tr>
+            <td><%= p.addOn.name %></td>
+            <td><%= p.thickness ? p.thickness.valueMm + ' mm' : 'Alla tjocklekar' %></td>
+            <td><%= p.price.toFixed(2) %> kr</td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <form method="post" action="/admin/prislistor/<%= priceList.id %>/tillvalspriser">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="addOnId">Tillval</label>
+      <select id="addOnId" name="addOnId" required>
+        <% addOns.forEach(a => { %><option value="<%= a.id %>"><%= a.name %> (<%= a.priceUnit === 'LOPMETER' ? 'kr/lm' : 'kr/st' %>)</option><% }) %>
+      </select>
+      <label for="addOnThicknessId">Tjocklek (valfritt)</label>
+      <select id="addOnThicknessId" name="thicknessId">
+        <option value="">Alla tjocklekar</option>
+        <% materials.forEach(m => { %>
+          <% m.thicknesses.forEach(t => { %><option value="<%= t.id %>"><%= m.name %> - <%= t.valueMm %> mm</option><% }) %>
+        <% }) %>
+      </select>
+      <label for="addOnPrice">Pris</label>
+      <input type="text" id="addOnPrice" name="price" required />
+      <button type="submit">Spara pris</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Förbered nästa period</h2>
+    <p>Skapar en ny prislista med alla priser höjda med en procentsats, utan att röra den här prislistan.</p>
+    <form method="post" action="/admin/prislistor/<%= priceList.id %>/hoja">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="newName">Namn på ny prislista</label>
+      <input type="text" id="newName" name="name" placeholder="t.ex. Prislista 2027" required />
+      <label for="newValidFrom">Giltig från</label>
+      <input type="date" id="newValidFrom" name="validFrom" required />
+      <label for="percent">Höjning i procent</label>
+      <input type="text" id="percent" name="percent" placeholder="t.ex. 3.5" required />
+      <button type="submit">Skapa höjd prislista</button>
+    </form>
+  </div>
+
+  <script src="/js/thickness-filter.js"></script>
+<%- include('../../partials/footer') %>

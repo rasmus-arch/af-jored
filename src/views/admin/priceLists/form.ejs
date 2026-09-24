@@ -1,0 +1,27 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Ny prislista</h1>
+  <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+
+  <form method="post" action="/admin/prislistor" class="card">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+
+    <label for="name">Namn</label>
+    <input type="text" id="name" name="name" placeholder="t.ex. Prislista 2027" required />
+
+    <label for="validFrom">Giltig från</label>
+    <input type="date" id="validFrom" name="validFrom" required />
+    <p class="decor-meta">Prislistan visas för återförsäljare först från och med detta datum, så nästa periods priser kan förberedas i förväg.</p>
+
+    <label for="copyFromId">Kopiera priser från (valfritt)</label>
+    <select id="copyFromId" name="copyFromId">
+      <option value="">Börja tomt</option>
+      <% priceLists.forEach(p => { %>
+        <option value="<%= p.id %>"><%= p.name %> (<%= p.validFrom.toISOString().slice(0,10) %>)</option>
+      <% }) %>
+    </select>
+
+    <button type="submit">Skapa prislista</button>
+    <a class="button" style="background:#6b685f;margin-left:.5rem" href="/admin/prislistor">Avbryt</a>
+  </form>
+<%- include('../../partials/footer') %>

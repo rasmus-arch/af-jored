@@ -49,10 +49,24 @@ function applyVat(amount, vatPercent) {
   return roundMoney(toDecimal(amount).times(factor));
 }
 
+// Används för att förbereda nästa periods priser: höjer ett pris med en
+// procentsats och avrundar halvt uppåt till 2 decimaler.
+function applyPercentageIncrease(price, percent) {
+  const factor = toDecimal(1).plus(toDecimal(percent).dividedBy(100));
+  return roundMoney(toDecimal(price).times(factor));
+}
+
+// Överlappar två inklusiva djupintervall varandra?
+function rangesOverlap(aFrom, aTo, bFrom, bTo) {
+  return aFrom <= bTo && bFrom <= aTo;
+}
+
 module.exports = {
   PriceRowNotFoundError,
   findPriceRowForDepth,
   validateDepthRanges,
   calculateLinePrice,
   applyVat,
+  applyPercentageIncrease,
+  rangesOverlap,
 };

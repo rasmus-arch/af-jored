@@ -1,0 +1,33 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Prislistor</h1>
+  <p><a class="button" href="/admin/prislistor/ny">Ny prislista</a></p>
+
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th scope="col">Namn</th>
+        <th scope="col">Giltig från</th>
+        <th scope="col">Bänkskiverader</th>
+        <th scope="col">Kantprofilpriser</th>
+        <th scope="col">Tillvalspriser</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% priceLists.forEach(p => { %>
+        <tr>
+          <td>
+            <a href="/admin/prislistor/<%= p.id %>"><%= p.name %></a>
+            <% if (p.id === currentId) { %><span class="badge badge-active">Gällande</span><% } %>
+          </td>
+          <td><%= p.validFrom.toISOString().slice(0, 10) %></td>
+          <td><%= p._count.countertopRows %></td>
+          <td><%= p._count.edgeProfilePrices %></td>
+          <td><%= p._count.addOnPrices %></td>
+          <td><a href="/admin/prislistor/<%= p.id %>">Öppna</a></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<%- include('../../partials/footer') %>

@@ -5,6 +5,8 @@ const {
   validateDepthRanges,
   calculateLinePrice,
   applyVat,
+  applyPercentageIncrease,
+  rangesOverlap,
   PriceRowNotFoundError,
 } = require('../src/services/pricing');
 
@@ -65,4 +67,15 @@ test('godkänner sammanhängande, icke överlappande djupintervall', () => {
 test('räknar moms på avrundat belopp, avrundat halvt uppåt', () => {
   const inclVat = applyVat('2933.75', 25);
   assert.equal(inclVat.toString(), '3667.19');
+});
+
+test('höjer pris med procentsats inför ny prisperiod', () => {
+  const increased = applyPercentageIncrease('1250.00', 5);
+  assert.equal(increased.toFixed(2), '1312.50');
+});
+
+test('rangesOverlap upptäcker överlapp och icke-överlapp korrekt', () => {
+  assert.equal(rangesOverlap(0, 635, 600, 1250), true);
+  assert.equal(rangesOverlap(0, 635, 636, 1250), false);
+  assert.equal(rangesOverlap(636, 1250, 0, 635), false);
 });
