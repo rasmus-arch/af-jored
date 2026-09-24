@@ -1,0 +1,84 @@
+<%- include('../../partials/head', { title }) %>
+  <h1>Sortiment</h1>
+
+  <form method="get" action="/portal/sortiment" class="card">
+    <div class="filter-grid">
+      <div>
+        <label for="materialId">Material</label>
+        <select id="materialId" name="materialId">
+          <option value="">Alla material</option>
+          <% materials.forEach(m => { %>
+            <option value="<%= m.id %>" <%= String(filters.materialId) === String(m.id) ? 'selected' : '' %>><%= m.name %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div>
+        <label for="brandId">Varumärke</label>
+        <select id="brandId" name="brandId">
+          <option value="">Alla varumärken</option>
+          <% brands.forEach(b => { %>
+            <option value="<%= b.id %>" <%= String(filters.brandId) === String(b.id) ? 'selected' : '' %>><%= b.name %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div>
+        <label for="categoryId">Kategori</label>
+        <select id="categoryId" name="categoryId">
+          <option value="">Alla kategorier</option>
+          <% categories.forEach(c => { %>
+            <option value="<%= c.id %>" <%= String(filters.categoryId) === String(c.id) ? 'selected' : '' %>><%= c.name %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div>
+        <label for="thicknessMm">Tjocklek</label>
+        <select id="thicknessMm" name="thicknessMm">
+          <option value="">Alla tjocklekar</option>
+          <% thicknessValues.forEach(mm => { %>
+            <option value="<%= mm %>" <%= String(filters.thicknessMm) === String(mm) ? 'selected' : '' %>><%= mm %> mm</option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div>
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          <option value="">Alla statusar</option>
+          <% statusOptions.forEach(s => { %>
+            <option value="<%= s.value %>" <%= filters.status === s.value ? 'selected' : '' %>><%= s.label %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <div>
+        <label for="q">Sök (kod eller namn)</label>
+        <input type="text" id="q" name="q" value="<%= filters.q || '' %>" />
+      </div>
+    </div>
+
+    <button type="submit">Filtrera</button>
+    <a class="button" href="/portal/sortiment" style="background:#6b685f; margin-left: .5rem;">Rensa filter</a>
+  </form>
+
+  <% if (decors.length === 0) { %>
+    <p>Inga dekorer matchade filtret.</p>
+  <% } %>
+
+  <div class="decor-grid">
+    <% decors.forEach(decor => { %>
+      <a class="card decor-card" href="/portal/sortiment/<%= decor.articleCode %>">
+        <h2><%= decor.name %></h2>
+        <p class="decor-meta"><%= decor.articleCode %> · <%= decor.material.name %> · <%= decor.brand.name %></p>
+        <p class="decor-meta">
+          Tjocklekar: <%= decor.decorThicknesses.map(dt => dt.thickness.valueMm + ' mm').join(', ') || '–' %>
+        </p>
+        <p class="decor-status decor-status-<%= decor.status.toLowerCase() %>">
+          <%= decor.status === 'AKTIV' ? 'Aktiv' : (decor.status === 'UTGAENDE' ? 'Utgående' : 'Utgått') %>
+        </p>
+      </a>
+    <% }) %>
+  </div>
+<%- include('../../partials/footer') %>

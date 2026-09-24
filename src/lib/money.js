@@ -16,4 +16,8 @@ function roundMoney(value, decimalPlaces = 2) {
   return toDecimal(value).toDecimalPlaces(decimalPlaces, Decimal.ROUND_HALF_UP);
 }
 
-module.exports = { Decimal, toDecimal, roundMoney };
+function sumMoney(values) {
+  return values.filter((v) => v != null).reduce((sum, v) => sum.plus(toDecimal(v)), new Decimal(0));
+}
+
+module.exports = { Decimal, toDecimal, roundMoney, sumMoney };

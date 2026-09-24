@@ -17,7 +17,11 @@ const { generateToken, doubleCsrfProtection } = doubleCsrf({
 });
 
 function exposeCsrfToken(req, res, next) {
-  res.locals.csrfToken = generateToken(req, res);
+  // overwrite=true: skapa alltid en ny token/cookie för sidan som renderas nu,
+  // i stället för att försöka återanvända en befintlig cookie. Utan detta
+  // kastas ett fel så fort sessionen bytt id (t.ex. vid inloggning, då
+  // req.session.regenerate() körs) men den gamla csrf-cookien finns kvar.
+  res.locals.csrfToken = generateToken(req, res, true);
   next();
 }
 

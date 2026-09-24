@@ -10,10 +10,19 @@
   <header class="site-header">
     <a class="logo" href="/">Joreds återförsäljarportal</a>
     <% if (typeof currentUser !== 'undefined' && currentUser) { %>
-      <form method="post" action="/logga-ut">
-        <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
-        <button type="submit">Logga ut</button>
-      </form>
+      <nav aria-label="Huvudmeny" class="site-nav">
+        <% if (currentUser.role === 'RESELLER') { %>
+          <a href="/portal">Min sida</a>
+          <a href="/portal/sortiment">Sortiment</a>
+          <a href="/portal/kalkylator">Priskalkylator</a>
+        <% } else if (currentUser.role === 'ADMIN') { %>
+          <a href="/admin">Adminöversikt</a>
+        <% } %>
+        <form method="post" action="/logga-ut" style="display:inline">
+          <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+          <button type="submit">Logga ut</button>
+        </form>
+      </nav>
     <% } %>
   </header>
   <main class="site-main">

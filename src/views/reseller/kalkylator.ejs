@@ -1,0 +1,113 @@
+<%- include('../partials/head', { title }) %>
+  <h1>Priskalkylator</h1>
+
+  <% if (errors.length > 0) { %>
+    <div class="card">
+      <% errors.forEach(e => { %>
+        <p class="error-message" role="alert"><%= e %></p>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <form method="get" action="/portal/kalkylator" class="card">
+    <label for="decorId">Dekor</label>
+    <select id="decorId" name="decorId" onchange="this.form.submit()">
+      <option value="">Välj dekor</option>
+      <% decors.forEach(d => { %>
+        <option value="<%= d.id %>" <%= String(query.decorId) === String(d.id) ? 'selected' : '' %>>
+          <%= d.articleCode %> – <%= d.name %> (<%= d.material.name %>)
+        </option>
+      <% }) %>
+    </select>
+
+    <% if (selectedDecor) { %>
+      <label for="thicknessId">Tjocklek</label>
+      <select id="thicknessId" name="thicknessId" onchange="this.form.submit()">
+        <option value="">Välj tjocklek</option>
+        <% selectedDecor.decorThicknesses.forEach(dt => { %>
+          <option value="<%= dt.thickness.id %>" <%= String(query.thicknessId) === String(dt.thickness.id) ? 'selected' : '' %>>
+            <%= dt.thickness.valueMm %> mm
+          </option>
+        <% }) %>
+      </select>
+
+      <label for="depthMm">Djup (mm)</label>
+      <input type="number" id="depthMm" name="depthMm" min="1" step="1" value="<%= query.depthMm || '' %>" required />
+
+      <label for="lengthMm">Längd (mm)</label>
+      <input type="number" id="lengthMm" name="lengthMm" min="1" step="1" value="<%= query.lengthMm || '' %>" required
+        <% if (selectedDecor.maxLengthMm) { %>max="<%= selectedDecor.maxLengthMm %>"<% } %> />
+      <% if (selectedDecor.maxLengthMm) { %>
+        <p class="decor-meta">Max längd för denna dekor: <%= selectedDecor.maxLengthMm %> mm</p>
+      <% } %>
+
+      <% if (edgeProfiles.length > 0) { %>
+        <label for="edgeProfileId">Kantprofil</label>
+        <select id="edgeProfileId" name="edgeProfileId">
+          <option value="">Ingen</option>
+          <% edgeProfiles.forEach(p => { %>
+            <option value="<%= p.id %>" <%= String(query.edgeProfileId) === String(p.id) ? 'selected' : '' %>><%= p.name %></option>
+          <% }) %>
+        </select>
+      <% } %>
+
+      <% if (addOns.length > 0) { %>
+        <fieldset>
+          <legend>Tillval</legend>
+          <% addOns.forEach(a => { %>
+            <label class="checkbox-label">
+              <input type="checkbox" name="addOnIds" value="<%= a.id %>"
+                <%= query.addOnIds && query.addOnIds.map(String).includes(String(a.id)) ? 'checked' : '' %> />
+              <%= a.name %> (<%= a.priceUnit === 'LOPMETER' ? 'kr/lm' : 'kr/st' %>)
+            </label>
+          <% }) %>
+        </fieldset>
+      <% } %>
+    <% } %>
+
+    <button type="submit">Beräkna</button>
+  </form>
+
+  <% if (result) { %>
+    <div class="card">
+      <h2>Resultat</h2>
+      <table class="price-table">
+        <thead>
+          <tr>
+            <th scope="col">Rad</th>
+            <th scope="col">Rek. pris</th>
+            <th scope="col">Ditt inköpspris</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Bänkskiva</td>
+            <td><%= result.line.recommendedPrice.toFixed(2) %> kr</td>
+            <td><%= result.line.purchasePrice.toFixed(2) %> kr</td>
+          </tr>
+          <% if (result.edgeLine) { %>
+            <tr>
+              <td>Kantprofil: <%= result.edgeLine.edgeProfile.name %></td>
+              <td colspan="2"><%= result.edgeLine.amount.toFixed(2) %> kr</td>
+            </tr>
+          <% } %>
+          <% result.addOnLines.forEach(a => { %>
+            <tr>
+              <td>Tillval: <%= a.addOn.name %></td>
+              <td colspan="2"><%= a.amount.toFixed(2) %> kr</td>
+            </tr>
+          <% }) %>
+          <tr>
+            <th scope="row">Totalt</th>
+            <td><strong><%= result.totalRecommended.toFixed(2) %> kr</strong></td>
+            <td><strong><%= result.totalPurchase.toFixed(2) %> kr</strong></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="decor-meta">
+        Marginal: <%= result.line.marginAmount.toFixed(2) %> kr (<%= result.line.marginPercent.toFixed(1) %> %) på bänkskiveraden.
+        <% if (result.line.usedNetPriceOverride) { %> Fast nettopris tillämpat.<% } %>
+      </p>
+    </div>
+  <% } %>
+<%- include('../partials/footer') %>

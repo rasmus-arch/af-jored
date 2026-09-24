@@ -54,6 +54,22 @@ a {
   text-decoration: none;
 }
 
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.site-nav a {
+  text-decoration: none;
+  color: var(--color-text);
+}
+
+.site-nav a:hover {
+  color: var(--color-primary);
+}
+
 .site-main {
   max-width: 960px;
   margin: 0 auto;
@@ -119,8 +135,134 @@ button:hover,
   margin: 0 auto;
 }
 
+select {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  margin-bottom: var(--space-2);
+  background: #fff;
+}
+
+fieldset {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  margin: 0 0 var(--space-2);
+}
+
+.checkbox-label {
+  font-weight: normal;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: var(--space-1);
+}
+
+.checkbox-label input {
+  width: auto;
+  margin: 0;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.decor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-2);
+}
+
+.decor-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.decor-card h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+  color: var(--color-primary);
+}
+
+.decor-meta {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.decor-status {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.decor-status-aktiv {
+  background: #e3efe6;
+  color: var(--color-success);
+}
+
+.decor-status-utgaende {
+  background: #f5ecda;
+  color: var(--color-accent);
+}
+
+.decor-status-utgatt {
+  background: #f3e2e0;
+  color: var(--color-danger);
+}
+
+.fact-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem var(--space-2);
+  margin: 0;
+}
+
+.fact-list dt {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.fact-list dd {
+  margin: 0;
+}
+
+.price-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--space-2);
+}
+
+.price-table th,
+.price-table td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
 @media (max-width: 600px) {
   .site-main {
     padding: var(--space-3) var(--space-2);
+  }
+
+  .price-table {
+    display: block;
+    overflow-x: auto;
   }
 }

@@ -1,0 +1,62 @@
+<%- include('../../partials/head', { title }) %>
+  <p><a href="/portal/sortiment">&larr; Tillbaka till sortimentet</a></p>
+  <h1><%= decor.name %></h1>
+  <p class="decor-meta"><%= decor.articleCode %> · <%= decor.material.name %> · <%= decor.brand.name %> · <%= decor.category.name %></p>
+
+  <div class="card">
+    <dl class="fact-list">
+      <dt>Ytstruktur</dt>
+      <dd><%= decor.surfaceTexture || '–' %></dd>
+      <dt>Maxlängd</dt>
+      <dd><%= decor.maxLengthMm ? decor.maxLengthMm + ' mm' : 'Ingen begränsning angiven' %></dd>
+      <dt>Status</dt>
+      <dd><%= decor.status === 'AKTIV' ? 'Aktiv' : (decor.status === 'UTGAENDE' ? 'Utgående' : 'Utgått') %></dd>
+      <% if (decor.notes) { %>
+        <dt>Anmärkning</dt>
+        <dd><%= decor.notes %></dd>
+      <% } %>
+    </dl>
+  </div>
+
+  <% thicknessRows.forEach(tr => { %>
+    <div class="card">
+      <h2><%= tr.thickness.valueMm %> mm</h2>
+
+      <% if (tr.edgeProfiles.length > 0) { %>
+        <p>Tillgängliga kantprofiler: <%= tr.edgeProfiles.map(p => p.name).join(', ') %></p>
+      <% } %>
+
+      <% if (tr.error) { %>
+        <p class="error-message"><%= tr.error %></p>
+      <% } else { %>
+        <table class="price-table">
+          <caption class="sr-only">Priser per djupintervall för <%= tr.thickness.valueMm %> mm</caption>
+          <thead>
+            <tr>
+              <th scope="col">Djup (mm)</th>
+              <th scope="col">Rek. pris/lm</th>
+              <th scope="col">Ditt inköpspris/lm</th>
+              <th scope="col">Marginal/lm</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% tr.rows.forEach(row => { %>
+              <tr>
+                <td><%= row.depthFromMm %>–<%= row.depthToMm %></td>
+                <td><%= row.recommendedPrice.toFixed(2) %> kr</td>
+                <td><%= row.purchasePrice.toFixed(2) %> kr</td>
+                <td><%= row.marginAmount.toFixed(2) %> kr (<%= row.marginPercent.toFixed(1) %> %)</td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+
+      <p>
+        <a class="button" href="/portal/kalkylator?decorId=<%= decor.id %>&thicknessId=<%= tr.thickness.id %>">
+          Beräkna en skiva i <%= tr.thickness.valueMm %> mm
+        </a>
+      </p>
+    </div>
+  <% }) %>
+<%- include('../../partials/footer') %>

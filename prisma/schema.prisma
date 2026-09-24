@@ -245,11 +245,14 @@ model DecorThickness {
 
 // Kantprofil är knuten till material och tjocklek (beslutat: inga undantag per dekor).
 model EdgeProfile {
-  id          Int     @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   name        String
-  description String? @db.Text
-  imageUrl    String? @map("image_url")
-  active      Boolean @default(true)
+  description String?   @db.Text
+  imageUrl    String?   @map("image_url")
+  // Om priset gäller per löpmeter (vanligast, kanten löper längs skivans
+  // längd) eller per styck (t.ex. fast pristillägg oavsett längd).
+  priceUnit   PriceUnit @default(LOPMETER) @map("price_unit")
+  active      Boolean   @default(true)
 
   compatibilities EdgeProfileCompatibility[]
   prices          EdgeProfilePrice[]

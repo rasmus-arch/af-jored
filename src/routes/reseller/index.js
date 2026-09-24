@@ -1,10 +1,14 @@
 const express = require('express');
 const prisma = require('../../lib/prisma');
 const { requireAuth, requireRole } = require('../../middleware/auth');
+const sortimentRoutes = require('./sortiment');
+const kalkylatorRoutes = require('./kalkylator');
 
 const router = express.Router();
 
 router.use(requireAuth, requireRole('RESELLER'));
+router.use(sortimentRoutes);
+router.use(kalkylatorRoutes);
 
 router.get('/', async (req, res, next) => {
   try {
