@@ -1,5 +1,5 @@
 const express = require('express');
-const { verifyPassword } = require('../../lib/passwordHash');
+const { verifyPassword, needsRehash, hashPassword } = require('../../lib/passwordHash');
 const prisma = require('../../lib/prisma');
 const totp = require('../../lib/totp');
 const { loginLimiter } = require('../../middleware/rateLimit');
@@ -47,12 +47,21 @@ router.post('/logga-in', loginLimiter, async (req, res, next) => {
 
     // Kör alltid en hash-verifiering, även om användaren saknas, för att inte
     // läcka via svarstid vilka e-postadresser som finns registrerade.
-    const passwordHash = user ? user.passwordHash : '$argon2id$v=19$m=65536,t=3,p=4$c2FsdHNhbHRzYWx0$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    const dummyHash = '906b6f28d589bb1d7e049a73adf9632e:a6185e94604b52b08819c577ad3fc6e24c0c4c5fba1455808d533ed5dfee9d4a49ac7e37c24d094fe34e5a8e1c754fad46c4deacf50a3cfc2e538b1fe1466af8';
+    const passwordHash = user ? user.passwordHash : dummyHash;
     const valid = await verifyPassword(passwordHash, password).catch(() => false);
 
     if (!user || !user.active || !valid) {
       await prisma.auditLog.create({ data: { action: 'LOGIN_FAILED', ipAddress: req.ip, newValue: { email } } });
       return res.status(401).render('auth/login', { title: 'Logga in', error: genericError, email });
+    }
+
+    // Hasha om transparent till scrypt om kontot fortfarande har en gammal
+    // argon2-hash, så vi successivt migrerar bort från argon2 utan att
+    // användaren behöver göra något.
+    if (needsRehash(passwordHash)) {
+      const rehashed = await hashPassword(password);
+      await prisma.user.update({ where: { id: user.id }, data: { passwordHash: rehashed } });
     }
 
     if (user.totpEnabled) {
