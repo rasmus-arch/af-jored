@@ -1,0 +1,40 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Dekorer</h1>
+  <p><a class="button" href="/admin/dekorer/nytt">Ny dekor</a></p>
+
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th scope="col">Kod</th>
+        <th scope="col">Namn</th>
+        <th scope="col">Material</th>
+        <th scope="col">Varumärke</th>
+        <th scope="col">Status</th>
+        <th scope="col">Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% decors.forEach(d => { %>
+        <tr>
+          <td><%= d.articleCode %></td>
+          <td><%= d.name %></td>
+          <td><%= d.material.name %></td>
+          <td><%= d.brand.name %></td>
+          <td>
+            <span class="badge <%= d.status === 'AKTIV' ? 'badge-active' : 'badge-inactive' %>">
+              <%= d.status === 'AKTIV' ? 'Aktiv' : (d.status === 'UTGAENDE' ? 'Utgående' : 'Utgått') %>
+            </span>
+          </td>
+          <td>
+            <a href="/admin/dekorer/<%= d.id %>/redigera">Redigera</a>
+            <form class="inline-form" method="post" action="/admin/dekorer/<%= d.id %>/inaktivera">
+              <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+              <button class="button-link" type="submit"><%= d.status === 'UTGATT' ? 'Återaktivera' : 'Sätt som utgått' %></button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<%- include('../../partials/footer') %>

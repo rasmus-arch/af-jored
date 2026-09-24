@@ -1,0 +1,42 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1><%= title %></h1>
+  <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+
+  <form method="post" action="<%= edgeProfile && edgeProfile.id ? '/admin/kantprofiler/' + edgeProfile.id : '/admin/kantprofiler' %>" enctype="multipart/form-data" class="card">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+
+    <label for="name">Namn</label>
+    <input type="text" id="name" name="name" value="<%= edgeProfile ? edgeProfile.name : '' %>" required />
+
+    <label for="description">Beskrivning</label>
+    <textarea id="description" name="description" rows="3"><%= edgeProfile ? (edgeProfile.description || '') : '' %></textarea>
+
+    <label for="priceUnit">Prisenhet</label>
+    <select id="priceUnit" name="priceUnit">
+      <option value="LOPMETER" <%= (!edgeProfile || edgeProfile.priceUnit === 'LOPMETER') ? 'selected' : '' %>>Kr per löpmeter</option>
+      <option value="STYCK" <%= edgeProfile && edgeProfile.priceUnit === 'STYCK' ? 'selected' : '' %>>Kr per styck</option>
+    </select>
+
+    <% if (edgeProfile && edgeProfile.imageUrl) { %><p><img class="thumb" src="<%= edgeProfile.imageUrl %>" alt="" /></p><% } %>
+    <label for="image">Bild/skiss</label>
+    <input type="file" id="image" name="image" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+
+    <fieldset>
+      <legend>Kompatibla material och tjocklekar</legend>
+      <% materials.forEach(m => { %>
+        <p><strong><%= m.name %></strong></p>
+        <% m.thicknesses.forEach(t => { %>
+          <label class="checkbox-label">
+            <input type="checkbox" name="compatibility" value="<%= m.id %>:<%= t.id %>"
+              <%= selectedCompatibilities.includes(m.id + ':' + t.id) ? 'checked' : '' %> />
+            <%= t.valueMm %> mm
+          </label>
+        <% }) %>
+      <% }) %>
+    </fieldset>
+
+    <button type="submit">Spara</button>
+    <a class="button" style="background:#6b685f;margin-left:.5rem" href="/admin/kantprofiler">Avbryt</a>
+  </form>
+<%- include('../../partials/footer') %>

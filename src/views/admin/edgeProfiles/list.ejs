@@ -1,0 +1,34 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Kantprofiler</h1>
+  <p><a class="button" href="/admin/kantprofiler/nytt">Ny kantprofil</a></p>
+
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th scope="col">Bild</th>
+        <th scope="col">Namn</th>
+        <th scope="col">Prisenhet</th>
+        <th scope="col">Status</th>
+        <th scope="col">Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% edgeProfiles.forEach(p => { %>
+        <tr>
+          <td><% if (p.imageUrl) { %><img class="thumb" src="<%= p.imageUrl %>" alt="" /><% } %></td>
+          <td><%= p.name %></td>
+          <td><%= p.priceUnit === 'LOPMETER' ? 'kr/lm' : 'kr/st' %></td>
+          <td><span class="badge <%= p.active ? 'badge-active' : 'badge-inactive' %>"><%= p.active ? 'Aktiv' : 'Inaktiv' %></span></td>
+          <td>
+            <a href="/admin/kantprofiler/<%= p.id %>/redigera">Redigera</a>
+            <form class="inline-form" method="post" action="/admin/kantprofiler/<%= p.id %>/vaxla-aktiv">
+              <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+              <button class="button-link" type="submit"><%= p.active ? 'Inaktivera' : 'Aktivera' %></button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<%- include('../../partials/footer') %>

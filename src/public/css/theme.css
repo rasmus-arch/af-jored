@@ -70,6 +70,86 @@ a {
   color: var(--color-primary);
 }
 
+.admin-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  padding: var(--space-1) 0 var(--space-3);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.9rem;
+}
+
+.admin-nav a {
+  text-decoration: none;
+  color: var(--color-text-muted);
+}
+
+.admin-nav a:hover {
+  color: var(--color-primary);
+}
+
+table.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--space-2);
+}
+
+table.admin-table th,
+table.admin-table td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-active {
+  background: #e3efe6;
+  color: var(--color-success);
+}
+
+.badge-inactive {
+  background: #f0efec;
+  color: var(--color-text-muted);
+}
+
+.inline-form {
+  display: inline;
+}
+
+.button-link {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
+
+.button-secondary {
+  background: var(--color-text-muted);
+}
+
+.button-danger {
+  background: var(--color-danger);
+}
+
+.thumb {
+  max-width: 60px;
+  max-height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
 .site-main {
   max-width: 960px;
   margin: 0 auto;
@@ -133,6 +213,20 @@ button:hover,
 .form-container {
   max-width: 400px;
   margin: 0 auto;
+}
+
+textarea {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-family: inherit;
+  margin-bottom: var(--space-2);
+}
+
+input[type="file"] {
+  margin-bottom: var(--space-2);
 }
 
 select {

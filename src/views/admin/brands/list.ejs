@@ -1,0 +1,32 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Varumärken</h1>
+  <p><a class="button" href="/admin/varumarken/nytt">Nytt varumärke</a></p>
+
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th scope="col">Logotyp</th>
+        <th scope="col">Namn</th>
+        <th scope="col">Status</th>
+        <th scope="col">Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% brands.forEach(b => { %>
+        <tr>
+          <td><% if (b.logoUrl) { %><img class="thumb" src="<%= b.logoUrl %>" alt="" /><% } %></td>
+          <td><%= b.name %></td>
+          <td><span class="badge <%= b.active ? 'badge-active' : 'badge-inactive' %>"><%= b.active ? 'Aktiv' : 'Inaktiv' %></span></td>
+          <td>
+            <a href="/admin/varumarken/<%= b.id %>/redigera">Redigera</a>
+            <form class="inline-form" method="post" action="/admin/varumarken/<%= b.id %>/vaxla-aktiv">
+              <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+              <button class="button-link" type="submit"><%= b.active ? 'Inaktivera' : 'Aktivera' %></button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<%- include('../../partials/footer') %>

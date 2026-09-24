@@ -1,0 +1,64 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1><%= title %></h1>
+  <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+
+  <form method="post" action="<%= material && material.id ? '/admin/material/' + material.id : '/admin/material' %>" enctype="multipart/form-data" class="card">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+
+    <label for="name">Namn</label>
+    <input type="text" id="name" name="name" value="<%= material ? material.name : '' %>" required />
+
+    <label for="description">Beskrivning</label>
+    <textarea id="description" name="description" rows="4"><%= material ? (material.description || '') : '' %></textarea>
+
+    <label for="sortOrder">Sorteringsordning</label>
+    <input type="number" id="sortOrder" name="sortOrder" value="<%= material ? material.sortOrder : 0 %>" />
+
+    <% if (material && material.imageUrl) { %>
+      <p><img class="thumb" src="<%= material.imageUrl %>" alt="" /></p>
+    <% } %>
+    <label for="image">Bild</label>
+    <input type="file" id="image" name="image" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+
+    <button type="submit">Spara</button>
+    <a class="button" style="background:#6b685f;margin-left:.5rem" href="/admin/material">Avbryt</a>
+  </form>
+
+  <% if (material && material.id) { %>
+    <div class="card">
+      <h2>Tjocklekar</h2>
+      <% if (thicknessError) { %><p class="error-message" role="alert"><%= thicknessError %></p><% } %>
+      <% if (thicknesses.length === 0) { %>
+        <p>Inga tjocklekar tillagda ännu.</p>
+      <% } else { %>
+        <table class="admin-table">
+          <thead>
+            <tr><th scope="col">mm</th><th scope="col">Status</th><th scope="col">Åtgärd</th></tr>
+          </thead>
+          <tbody>
+            <% thicknesses.forEach(t => { %>
+              <tr>
+                <td><%= t.valueMm %> mm</td>
+                <td><span class="badge <%= t.active ? 'badge-active' : 'badge-inactive' %>"><%= t.active ? 'Aktiv' : 'Inaktiv' %></span></td>
+                <td>
+                  <form class="inline-form" method="post" action="/admin/material/<%= material.id %>/tjocklekar/<%= t.id %>/vaxla-aktiv">
+                    <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+                    <button class="button-link" type="submit"><%= t.active ? 'Inaktivera' : 'Aktivera' %></button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+
+      <form method="post" action="/admin/material/<%= material.id %>/tjocklekar">
+        <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+        <label for="valueMm">Ny tjocklek (mm)</label>
+        <input type="number" id="valueMm" name="valueMm" min="1" required />
+        <button type="submit">Lägg till tjocklek</button>
+      </form>
+    </div>
+  <% } %>
+<%- include('../../partials/footer') %>

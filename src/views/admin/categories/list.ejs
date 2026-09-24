@@ -1,0 +1,51 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Dekorkategorier</h1>
+  <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+
+  <% categories.forEach(c => { %>
+    <form id="catform-<%= c.id %>" method="post" action="/admin/dekorkategorier/<%= c.id %>" hidden></form>
+    <form id="toggleform-<%= c.id %>" method="post" action="/admin/dekorkategorier/<%= c.id %>/vaxla-aktiv" hidden>
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+    </form>
+  <% }) %>
+
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th scope="col">Namn</th>
+        <th scope="col">Sortering</th>
+        <th scope="col">Status</th>
+        <th scope="col">Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% categories.forEach(c => { %>
+        <tr>
+          <td>
+            <input form="catform-<%= c.id %>" type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+            <input form="catform-<%= c.id %>" type="text" name="name" value="<%= c.name %>" aria-label="Namn för <%= c.name %>" />
+          </td>
+          <td><input form="catform-<%= c.id %>" type="number" name="sortOrder" value="<%= c.sortOrder %>" style="width:5rem" aria-label="Sortering för <%= c.name %>" /></td>
+          <td><span class="badge <%= c.active ? 'badge-active' : 'badge-inactive' %>"><%= c.active ? 'Aktiv' : 'Inaktiv' %></span></td>
+          <td>
+            <button form="catform-<%= c.id %>" type="submit">Spara</button>
+            <button form="toggleform-<%= c.id %>" class="button-link" type="submit"><%= c.active ? 'Inaktivera' : 'Aktivera' %></button>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <div class="card">
+    <h2>Ny kategori</h2>
+    <form method="post" action="/admin/dekorkategorier">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="name">Namn</label>
+      <input type="text" id="name" name="name" required />
+      <label for="sortOrder">Sortering</label>
+      <input type="number" id="sortOrder" name="sortOrder" value="0" />
+      <button type="submit">Lägg till</button>
+    </form>
+  </div>
+<%- include('../../partials/footer') %>

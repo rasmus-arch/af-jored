@@ -1,0 +1,80 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1><%= title %></h1>
+  <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+
+  <form method="post" action="<%= decor && decor.id ? '/admin/dekorer/' + decor.id : '/admin/dekorer' %>" enctype="multipart/form-data" class="card">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+
+    <label for="articleCode">Artikelkod</label>
+    <input type="text" id="articleCode" name="articleCode" value="<%= decor ? decor.articleCode : '' %>" required />
+
+    <label for="name">Namn</label>
+    <input type="text" id="name" name="name" value="<%= decor ? decor.name : '' %>" required />
+
+    <label for="materialId">Material</label>
+    <select id="materialId" name="materialId" data-thickness-filter required>
+      <option value="">Välj material</option>
+      <% materials.forEach(m => { %>
+        <option value="<%= m.id %>" <%= decor && Number(decor.materialId) === m.id ? 'selected' : '' %>><%= m.name %></option>
+      <% }) %>
+    </select>
+
+    <label for="brandId">Varumärke</label>
+    <select id="brandId" name="brandId" required>
+      <option value="">Välj varumärke</option>
+      <% brands.forEach(b => { %>
+        <option value="<%= b.id %>" <%= decor && Number(decor.brandId) === b.id ? 'selected' : '' %>><%= b.name %></option>
+      <% }) %>
+    </select>
+
+    <label for="categoryId">Kategori</label>
+    <select id="categoryId" name="categoryId" required>
+      <option value="">Välj kategori</option>
+      <% categories.forEach(c => { %>
+        <option value="<%= c.id %>" <%= decor && Number(decor.categoryId) === c.id ? 'selected' : '' %>><%= c.name %></option>
+      <% }) %>
+    </select>
+
+    <label for="surfaceTexture">Ytstruktur</label>
+    <input type="text" id="surfaceTexture" name="surfaceTexture" value="<%= decor ? (decor.surfaceTexture || '') : '' %>" placeholder="t.ex. ST9, HG, MAT" />
+
+    <label for="maxLengthMm">Maxlängd (mm)</label>
+    <input type="number" id="maxLengthMm" name="maxLengthMm" value="<%= decor && decor.maxLengthMm ? decor.maxLengthMm : '' %>" />
+
+    <label for="status">Status</label>
+    <select id="status" name="status">
+      <option value="AKTIV" <%= (!decor || decor.status === 'AKTIV') ? 'selected' : '' %>>Aktiv</option>
+      <option value="UTGAENDE" <%= decor && decor.status === 'UTGAENDE' ? 'selected' : '' %>>Utgående</option>
+      <option value="UTGATT" <%= decor && decor.status === 'UTGATT' ? 'selected' : '' %>>Utgått</option>
+    </select>
+
+    <label for="notes">Anmärkning</label>
+    <textarea id="notes" name="notes" rows="3"><%= decor ? (decor.notes || '') : '' %></textarea>
+
+    <label for="sortOrder">Sorteringsordning</label>
+    <input type="number" id="sortOrder" name="sortOrder" value="<%= decor ? decor.sortOrder : 0 %>" />
+
+    <% if (decor && decor.imageUrl) { %><p><img class="thumb" src="<%= decor.imageUrl %>" alt="" /></p><% } %>
+    <label for="image">Bild</label>
+    <input type="file" id="image" name="image" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+
+    <fieldset>
+      <legend>Tillgängliga tjocklekar</legend>
+      <% materials.forEach(m => { %>
+        <div class="thickness-group" data-material-group="<%= m.id %>">
+          <% m.thicknesses.forEach(t => { %>
+            <label class="checkbox-label">
+              <input type="checkbox" name="thicknessIds" value="<%= t.id %>" <%= selectedThicknessIds.includes(t.id) ? 'checked' : '' %> />
+              <%= t.valueMm %> mm <% if (!t.active) { %>(inaktiv)<% } %>
+            </label>
+          <% }) %>
+        </div>
+      <% }) %>
+    </fieldset>
+
+    <button type="submit">Spara</button>
+    <a class="button" style="background:#6b685f;margin-left:.5rem" href="/admin/dekorer">Avbryt</a>
+  </form>
+  <script src="/js/decor-form.js"></script>
+<%- include('../../partials/footer') %>

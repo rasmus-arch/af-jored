@@ -1,0 +1,21 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1><%= title %></h1>
+  <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+
+  <form method="post" action="<%= brand && brand.id ? '/admin/varumarken/' + brand.id : '/admin/varumarken' %>" enctype="multipart/form-data" class="card">
+    <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+
+    <label for="name">Namn</label>
+    <input type="text" id="name" name="name" value="<%= brand ? brand.name : '' %>" required />
+
+    <% if (brand && brand.logoUrl) { %>
+      <p><img class="thumb" src="<%= brand.logoUrl %>" alt="" /></p>
+    <% } %>
+    <label for="logo">Logotyp</label>
+    <input type="file" id="logo" name="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+
+    <button type="submit">Spara</button>
+    <a class="button" style="background:#6b685f;margin-left:.5rem" href="/admin/varumarken">Avbryt</a>
+  </form>
+<%- include('../../partials/footer') %>

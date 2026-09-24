@@ -1,0 +1,32 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Tillval</h1>
+  <p><a class="button" href="/admin/tillval/nytt">Nytt tillval</a></p>
+
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th scope="col">Namn</th>
+        <th scope="col">Prisenhet</th>
+        <th scope="col">Status</th>
+        <th scope="col">Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% addOns.forEach(a => { %>
+        <tr>
+          <td><%= a.name %></td>
+          <td><%= a.priceUnit === 'LOPMETER' ? 'kr/lm' : 'kr/st' %></td>
+          <td><span class="badge <%= a.active ? 'badge-active' : 'badge-inactive' %>"><%= a.active ? 'Aktiv' : 'Inaktiv' %></span></td>
+          <td>
+            <a href="/admin/tillval/<%= a.id %>/redigera">Redigera</a>
+            <form class="inline-form" method="post" action="/admin/tillval/<%= a.id %>/vaxla-aktiv">
+              <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+              <button class="button-link" type="submit"><%= a.active ? 'Inaktivera' : 'Aktivera' %></button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<%- include('../../partials/footer') %>
