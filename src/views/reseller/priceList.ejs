@@ -1,0 +1,15 @@
+<%- include('../partials/head', { title }) %>
+  <h1>Min prislista</h1>
+  <p>Exportera din egen prislista (rekommenderat pris och ditt inköpspris) för ett valfritt datum.</p>
+
+  <form method="get" action="/portal/prislista" class="card">
+    <label for="datum">Datum</label>
+    <input type="date" id="datum" name="datum" value="<%= datum %>" />
+    <button type="submit">Uppdatera datum</button>
+  </form>
+
+  <p>
+    <a class="button" href="/portal/prislista/csv?datum=<%= datum %>">Exportera CSV</a>
+    <a class="button" style="background:#6b685f;margin-left:.5rem" href="/portal/prislista/pdf?datum=<%= datum %>">Exportera PDF</a>
+  </p>
+<%- include('../partials/footer') %>

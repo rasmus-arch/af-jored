@@ -12,9 +12,12 @@
     <% if (typeof currentUser !== 'undefined' && currentUser) { %>
       <nav aria-label="Huvudmeny" class="site-nav">
         <% if (currentUser.role === 'RESELLER') { %>
-          <a href="/portal">Min sida</a>
+          <a href="/portal">Startsida</a>
           <a href="/portal/sortiment">Sortiment</a>
           <a href="/portal/kalkylator">Priskalkylator</a>
+          <a href="/portal/dokument">Dokument</a>
+          <a href="/portal/prislista">Min prislista</a>
+          <a href="/portal/mina-sidor">Min sida</a>
         <% } else if (currentUser.role === 'ADMIN') { %>
           <a href="/admin">Adminöversikt</a>
         <% } %>

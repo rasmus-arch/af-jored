@@ -1,0 +1,37 @@
+<%- include('../partials/head', { title }) %>
+  <h1>Min sida</h1>
+
+  <div class="card">
+    <h2>Företagsuppgifter</h2>
+    <dl class="fact-list">
+      <dt>Företag</dt><dd><%= company.name %></dd>
+      <dt>Org.nr</dt><dd><%= company.orgNumber %></dd>
+      <% if (company.street) { %><dt>Adress</dt><dd><%= company.street %>, <%= company.postalCode || '' %> <%= company.city || '' %></dd><% } %>
+      <% if (company.contactName) { %><dt>Kontaktperson</dt><dd><%= company.contactName %></dd><% } %>
+      <% if (company.contactEmail) { %><dt>Kontakt-e-post</dt><dd><%= company.contactEmail %></dd><% } %>
+      <% if (company.contactPhone) { %><dt>Kontakttelefon</dt><dd><%= company.contactPhone %></dd><% } %>
+    </dl>
+    <p class="decor-meta">Kontakta Joreds för att ändra företagsuppgifter.</p>
+  </div>
+
+  <div class="card">
+    <h2>Användare i företaget</h2>
+    <table class="admin-table">
+      <thead><tr><th scope="col">E-post</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        <% users.forEach(u => { %>
+          <tr>
+            <td><%= u.email %><% if (u.id === currentUserId) { %> (du)<% } %></td>
+            <td><span class="badge <%= u.active ? 'badge-active' : 'badge-inactive' %>"><%= u.active ? 'Aktiv' : 'Inaktiv' %></span></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <p class="decor-meta">Kontakta Joreds för att bjuda in fler användare.</p>
+  </div>
+
+  <div class="card">
+    <h2>Konto</h2>
+    <p><a class="button" href="/konto">Byt lösenord och hantera tvåstegsverifiering</a></p>
+  </div>
+<%- include('../partials/footer') %>

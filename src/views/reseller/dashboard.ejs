@@ -1,7 +1,29 @@
 <%- include('../partials/head', { title }) %>
-  <h1>Min sida</h1>
-  <p>Inloggad som <strong><%= user.email %></strong><% if (company) { %> hos <strong><%= company.name %></strong><% } %>.</p>
+  <h1>Välkommen<% if (user.email) { %>, <%= user.email %><% } %></h1>
+
   <div class="card">
-    <p>Här kommer sortiment, priskalkylator, dokumentarkiv och nyheter att byggas ut i kommande faser.</p>
+    <h2>Genvägar</h2>
+    <p>
+      <a class="button" href="/portal/sortiment">Sortiment</a>
+      <a class="button" style="margin-left:.5rem" href="/portal/kalkylator">Priskalkylator</a>
+      <a class="button" style="margin-left:.5rem" href="/portal/dokument">Dokumentarkiv</a>
+      <a class="button" style="margin-left:.5rem" href="/portal/prislista">Min prislista</a>
+    </p>
+    <p><a href="https://joreds.prodtime.com/" target="_blank" rel="noopener noreferrer">Öppna Joreds ritprogram &rarr;</a></p>
+  </div>
+
+  <div class="card">
+    <h2>Nyheter från Joreds</h2>
+    <% if (newsPosts.length === 0) { %>
+      <p>Inga nyheter just nu.</p>
+    <% } else { %>
+      <% newsPosts.forEach(n => { %>
+        <article style="margin-bottom: 1rem;">
+          <h3 style="margin-bottom:.25rem"><%= n.title %></h3>
+          <p class="decor-meta" style="margin-top:0"><%= n.publishedAt ? n.publishedAt.toISOString().slice(0,10) : '' %></p>
+          <p><%= n.body %></p>
+        </article>
+      <% }) %>
+    <% } %>
   </div>
 <%- include('../partials/footer') %>
