@@ -10,6 +10,8 @@ const addOnsRoutes = require('./addOns');
 const priceListsRoutes = require('./priceLists');
 const companiesRoutes = require('./companies');
 const importExportRoutes = require('./importExport');
+const newsRoutes = require('./news');
+const documentsRoutes = require('./documents');
 
 const router = express.Router();
 
@@ -28,5 +30,7 @@ router.use(addOnsRoutes);
 router.use(priceListsRoutes);
 router.use(companiesRoutes);
 router.use(importExportRoutes);
+router.use(newsRoutes);
+router.use(documentsRoutes);
 
 module.exports = router;

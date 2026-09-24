@@ -1,0 +1,25 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Nyheter</h1>
+  <p><a class="button" href="/admin/nyheter/nytt">Ny nyhet</a></p>
+
+  <table class="admin-table">
+    <thead><tr><th scope="col">Rubrik</th><th scope="col">Publicerad</th><th scope="col">Status</th><th scope="col">Åtgärder</th></tr></thead>
+    <tbody>
+      <% posts.forEach(p => { %>
+        <tr>
+          <td><%= p.title %></td>
+          <td><%= p.publishedAt ? p.publishedAt.toISOString().slice(0, 10) : '–' %></td>
+          <td><span class="badge <%= p.active ? 'badge-active' : 'badge-inactive' %>"><%= p.active ? 'Publicerad' : 'Dold' %></span></td>
+          <td>
+            <a href="/admin/nyheter/<%= p.id %>/redigera">Redigera</a>
+            <form class="inline-form" method="post" action="/admin/nyheter/<%= p.id %>/vaxla-aktiv">
+              <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+              <button class="button-link" type="submit"><%= p.active ? 'Dölj' : 'Publicera' %></button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+<%- include('../../partials/footer') %>

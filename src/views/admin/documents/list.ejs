@@ -1,0 +1,64 @@
+<%- include('../../partials/head', { title }) %>
+  <%- include('../_nav') %>
+  <h1>Dokument</h1>
+  <% if (error) { %><p class="error-message" role="alert"><%= error %></p><% } %>
+
+  <table class="admin-table">
+    <thead><tr><th scope="col">Titel</th><th scope="col">Kategori</th><th scope="col">Synlighet</th><th scope="col">Åtgärder</th></tr></thead>
+    <tbody>
+      <% documents.forEach(d => { %>
+        <tr>
+          <td><a href="/admin/dokument/<%= d.id %>/hamta"><%= d.title %></a></td>
+          <td><%= categoryLabels[d.category] %></td>
+          <td>
+            <% if (d.visibility === 'ALLA') { %>
+              Alla återförsäljare
+            <% } else { %>
+              <%= d.companies.map(dc => dc.company.name).join(', ') || 'Inga valda' %>
+            <% } %>
+          </td>
+          <td>
+            <form class="inline-form" method="post" action="/admin/dokument/<%= d.id %>/ta-bort">
+              <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+              <button class="button-link" type="submit">Ta bort</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <div class="card">
+    <h2>Ladda upp dokument</h2>
+    <form method="post" action="/admin/dokument" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="<%= csrfToken %>" />
+      <label for="docTitle">Titel</label>
+      <input type="text" id="docTitle" name="title" required />
+      <label for="category">Kategori</label>
+      <select id="category" name="category" required>
+        <% Object.entries(categoryLabels).forEach(([value, label]) => { %>
+          <option value="<%= value %>"><%= label %></option>
+        <% }) %>
+      </select>
+      <label for="visibility">Synlighet</label>
+      <select id="visibility" name="visibility" data-toggle-companies>
+        <option value="ALLA">Alla återförsäljare</option>
+        <option value="SPECIFIKA">Utvalda återförsäljare</option>
+      </select>
+      <fieldset data-companies-fieldset hidden>
+        <legend>Välj återförsäljare</legend>
+        <% companies.forEach(c => { %>
+          <label class="checkbox-label">
+            <input type="checkbox" name="companyIds" value="<%= c.id %>" />
+            <%= c.name %>
+          </label>
+        <% }) %>
+      </fieldset>
+      <label for="file">Fil (PDF, Word, Excel eller bild)</label>
+      <input type="file" id="file" name="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" required />
+      <button type="submit">Ladda upp</button>
+    </form>
+  </div>
+
+  <script src="/js/document-visibility.js"></script>
+<%- include('../../partials/footer') %>
