@@ -1,5 +1,5 @@
 const express = require('express');
-const prisma = require('../../lib/prisma');
+const { query, mapRow } = require('../../lib/db');
 const catalog = require('../../services/catalog');
 const { calculateCountertopLine } = require('../../services/quote');
 const { calculateLinePrice, PriceRowNotFoundError } = require('../../services/pricing');
@@ -12,7 +12,7 @@ router.get('/kalkylator', async (req, res, next) => {
     const decors = await catalog.listDecors({});
     const priceList = await catalog.getCurrentPriceList();
     const settings = await catalog.getSettings();
-    const company = await prisma.company.findUnique({ where: { id: req.session.user.companyId } });
+    const company = mapRow((await query('SELECT * FROM companies WHERE id = ?', [req.session.user.companyId]))[0]);
     const discountRules = await catalog.getDiscountRulesForCompany(company.id);
     const netPriceOverrides = await catalog.getNetPriceOverridesForCompany(company.id);
 

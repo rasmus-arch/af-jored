@@ -1,6 +1,6 @@
 const express = require('express');
 const PDFDocument = require('pdfkit');
-const prisma = require('../../lib/prisma');
+const { query, mapRow } = require('../../lib/db');
 const catalog = require('../../services/catalog');
 const { calculateCountertopLine } = require('../../services/quote');
 const { toCsv } = require('../../services/spreadsheet');
@@ -81,7 +81,7 @@ router.get('/prislista/csv', async (req, res, next) => {
 router.get('/prislista/pdf', async (req, res, next) => {
   try {
     const asOf = req.query.datum ? new Date(req.query.datum) : new Date();
-    const company = await prisma.company.findUnique({ where: { id: req.session.user.companyId } });
+    const company = mapRow((await query('SELECT * FROM companies WHERE id = ?', [req.session.user.companyId]))[0]);
     const { priceList, rows } = await buildPriceListRows(req.session.user.companyId, asOf);
 
     res.setHeader('Content-Type', 'application/pdf');

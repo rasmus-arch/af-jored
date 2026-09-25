@@ -1,14 +1,15 @@
 const express = require('express');
-const prisma = require('../../lib/prisma');
+const { query, mapRow, mapRows } = require('../../lib/db');
 
 const router = express.Router();
 
 router.get('/mina-sidor', async (req, res, next) => {
   try {
-    const [company, users] = await Promise.all([
-      prisma.company.findUnique({ where: { id: req.session.user.companyId } }),
-      prisma.user.findMany({ where: { companyId: req.session.user.companyId }, orderBy: { email: 'asc' } }),
+    const [companyRows, users] = await Promise.all([
+      query('SELECT * FROM companies WHERE id = ?', [req.session.user.companyId]),
+      mapRows(await query('SELECT * FROM users WHERE company_id = ? ORDER BY email ASC', [req.session.user.companyId])),
     ]);
+    const company = mapRow(companyRows[0]);
     res.render('reseller/account', { title: 'Min sida', company, users, currentUserId: req.session.user.id });
   } catch (err) {
     next(err);

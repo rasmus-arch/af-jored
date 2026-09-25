@@ -1,6 +1,6 @@
 const path = require('path');
 const express = require('express');
-const prisma = require('../../lib/prisma');
+const { query, mapRow, mapRows } = require('../../lib/db');
 const { DOCUMENT_DIR } = require('../../middleware/upload');
 
 const router = express.Router();
@@ -15,12 +15,16 @@ const CATEGORY_LABELS = {
 router.get('/dokument', async (req, res, next) => {
   try {
     const companyId = req.session.user.companyId;
-    const documents = await prisma.document.findMany({
-      where: {
-        OR: [{ visibility: 'ALLA' }, { visibility: 'SPECIFIKA', companies: { some: { companyId } } }],
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const documents = mapRows(
+      await query(
+        `SELECT DISTINCT d.*
+         FROM documents d
+         LEFT JOIN document_companies dc ON dc.document_id = d.id AND dc.company_id = ?
+         WHERE d.visibility = 'ALLA' OR (d.visibility = 'SPECIFIKA' AND dc.company_id IS NOT NULL)
+         ORDER BY d.created_at DESC`,
+        [companyId]
+      )
+    );
 
     const byCategory = {};
     for (const doc of documents) {
@@ -37,12 +41,14 @@ router.get('/dokument', async (req, res, next) => {
 router.get('/dokument/:id/hamta', async (req, res, next) => {
   try {
     const companyId = req.session.user.companyId;
-    const document = await prisma.document.findFirst({
-      where: {
-        id: Number(req.params.id),
-        OR: [{ visibility: 'ALLA' }, { visibility: 'SPECIFIKA', companies: { some: { companyId } } }],
-      },
-    });
+    const rows = await query(
+      `SELECT DISTINCT d.*
+       FROM documents d
+       LEFT JOIN document_companies dc ON dc.document_id = d.id AND dc.company_id = ?
+       WHERE d.id = ? AND (d.visibility = 'ALLA' OR (d.visibility = 'SPECIFIKA' AND dc.company_id IS NOT NULL))`,
+      [companyId, Number(req.params.id)]
+    );
+    const document = mapRow(rows[0]);
     if (!document) {
       return res.status(404).render('error', { title: 'Hittades inte', message: 'Dokumentet kunde inte hittas.' });
     }

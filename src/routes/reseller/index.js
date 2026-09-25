@@ -1,5 +1,5 @@
 const express = require('express');
-const prisma = require('../../lib/prisma');
+const { query, mapRows } = require('../../lib/db');
 const { requireAuth, requireRole } = require('../../middleware/auth');
 const sortimentRoutes = require('./sortiment');
 const kalkylatorRoutes = require('./kalkylator');
@@ -18,11 +18,9 @@ router.use(accountRoutes);
 
 router.get('/', async (req, res, next) => {
   try {
-    const newsPosts = await prisma.newsPost.findMany({
-      where: { active: true },
-      orderBy: { publishedAt: 'desc' },
-      take: 5,
-    });
+    const newsPosts = mapRows(
+      await query('SELECT * FROM news_posts WHERE active = 1 ORDER BY published_at DESC LIMIT 5')
+    );
     res.render('reseller/dashboard', { title: 'Startsida', user: req.session.user, newsPosts });
   } catch (err) {
     next(err);

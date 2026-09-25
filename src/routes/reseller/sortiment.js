@@ -1,5 +1,5 @@
 const express = require('express');
-const prisma = require('../../lib/prisma');
+const { query } = require('../../lib/db');
 const catalog = require('../../services/catalog');
 const { calculateCountertopLine, calculateProductLine } = require('../../services/quote');
 const { PriceRowNotFoundError } = require('../../services/pricing');
@@ -59,9 +59,11 @@ router.get('/sortiment/:articleCode', async (req, res, next) => {
       return res.status(404).render('error', { title: 'Hittades inte', message: 'Dekoren kunde inte hittas.' });
     }
 
-    await prisma.productView.create({
-      data: { decorId: decor.id, companyId: req.session.user.companyId, userId: req.session.user.id },
-    });
+    await query('INSERT INTO product_views (decor_id, company_id, user_id, viewed_at) VALUES (?, ?, ?, NOW())', [
+      decor.id,
+      req.session.user.companyId,
+      req.session.user.id,
+    ]);
 
     const [priceList, settings, discountRules, netPriceOverrides] = await Promise.all([
       catalog.getCurrentPriceList(),
