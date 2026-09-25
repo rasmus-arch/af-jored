@@ -13,26 +13,37 @@ kommande faser.
 ## Teknik
 
 - Node.js (LTS) + Express, serverrenderade vyer med EJS
-- MySQL/MariaDB via Prisma (ORM + migreringar)
+- MySQL/MariaDB via rå `mysql2` - ingen ORM. `src/lib/db.js` delar en
+  connection pool för hela appen; `scripts/migrate.js` kör de versionerade
+  `.sql`-filerna i `prisma/migrations/` i ordning (namnet på mappen är
+  historiskt - filerna är helt vanlig, portabel SQL utan några
+  ORM-beroenden)
 - Sessioner lagras i databasen (`express-mysql-session`), inte i minnet
-- Lösenord hashas med argon2, CSRF-skydd (dubbel cookie), rate limiting på
-  inloggning
+- Lösenord hashas med Node:s inbyggda `crypto.scrypt` (äldre konton med
+  argon2-hashar hashas om transparent vid nästa inloggning), CSRF-skydd
+  (dubbel cookie), rate limiting på inloggning
 - Alla belopp hanteras som `Decimal` (via `decimal.js` i beräkningstjänsterna
-  och Prisma `Decimal`/MySQL `DECIMAL` i databasen) - aldrig som flyttal
+  och MySQL `DECIMAL` i databasen) - aldrig som flyttal
 
 ## Projektstruktur
 
 ```
 prisma/
-  schema.prisma      Datamodell
+  migrations/         Versionerade .sql-filer (körs av scripts/migrate.js)
   seed.js             Exempeldata (se nedan)
+scripts/
+  migrate.js          Kör pending migrationer (ersätter `prisma migrate deploy`)
+  seed-example-data.js  Lägger till specifik exempeldata utan att röra befintlig data
+  create-admin.js     Skapar/uppdaterar ett adminkonto från terminalen
 src/
   app.js              Express-app: middleware och routes
   server.js            Startpunkt (även entry-fil för cPanel/Passenger)
   config/              Läser in miljövariabler
+  lib/db.js            Delad mysql2-pool + små SQL-hjälpare (query, mapRow, withTransaction)
   middleware/          auth, csrf, rate limit
   routes/              auth, admin, reseller
-  services/            Ren, testbar affärslogik (pricing, discount, quote)
+  services/            Ren, testbar affärslogik (pricing, discount, quote) samt
+                        catalog.js/users.js som pratar direkt med databasen
   views/               EJS-mallar
   public/              CSS/JS/bilder - tema (färger) i public/css/theme.css
 tests/                 node:test - prisberäkning, rabattlogik, behörighet
@@ -47,7 +58,7 @@ npm install
 cp .env.example .env
 # redigera .env: DATABASE_URL, SESSION_SECRET, SMTP-uppgifter m.m.
 
-npx prisma migrate dev --name init   # skapar databastabeller
+npm run migrate                       # skapar databastabeller
 npm run seed                          # exempeldata (se nedan)
 
 npm run dev                           # startar med auto-omstart
@@ -82,10 +93,13 @@ middleware/auth.js` och kräver ingen databas.
 - 3 varumärken, en dekorkategori-tabell med 4 kategorier
 - 15 dekorer fördelade på materialen
 - 3 tjocklekar per material (12/20/30 mm) med varierande dekor-kombinationer
-- En prislista med 3 djupintervall per material och tjocklek
+- En prislista med 3 djupintervall per material och tjocklek, samt priser för
+  produkterna
 - 3 kantprofiler och 5 tillval
-- 2 återförsäljare med olika rabattregler (materialrabatt,
-  varumärkesrabatt inom material, samt grundrabatt)
+- 3 varumärken (Stala, Jored Sinks, DecoSteel) och 6 fristående produkter
+  (diskhoar/blandare/tillbehör) knutna till dem
+- 2 återförsäljare med olika rabattregler (materialrabatt och
+  varumärkesrabatt) samt varumärkessynlighet
 
 Alla seedade användare har lösenordet som skrivs ut i terminalen när
 seed-scriptet körs (`ByteMigDirekt123!` i skriptet - byt gärna innan ni
@@ -140,8 +154,7 @@ att lägga en bildfil i `src/public/images/` och referera den i
    SSH:a in och kör, i applikationens virtuella miljö:
    ```bash
    npm install --omit=dev
-   npx prisma generate
-   npx prisma migrate deploy
+   npm run migrate
    npm run seed   # endast första gången, eller hoppa över i produktion
    ```
 5. Starta om applikationen från cPanel-gränssnittet ("Restart").
@@ -175,23 +188,25 @@ kan du sätta separata miljövariabler under "Environment variables" i
 
 Appen bygger då själv ihop `DATABASE_URL` och kodar specialtecken i
 användarnamn/lösenord automatiskt (`src/lib/databaseUrl.js`). Lämna
-`DATABASE_URL` tomt/osatt när du använder dessa. `npm run seed` och alla
-`prisma:*`-kommandon kör automatiskt `npm run sync-env` först, som skriver
-in den ihopbyggda `DATABASE_URL` i `.env` så att Prisma CLI hittar den.
+`DATABASE_URL` tomt/osatt när du använder dessa. `npm run seed`, `npm run
+migrate` och `npm run seed-example-data` kör automatiskt `npm run sync-env`
+först, som skriver in den ihopbyggda `DATABASE_URL` i `.env` så att de
+fristående scripten (som körs direkt med `node`, inte via `npm run`) hittar
+den.
 
 ### Uppdatera en befintlig driftsättning
 
 ```bash
 git pull
 npm install --omit=dev
-npx prisma migrate deploy
+npm run migrate
 ```
 Starta sedan om applikationen i cPanel för att ladda in ändringarna
 (Passenger håller annars kvar den gamla processen i minnet).
 
 ## Säkerhet
 
-- Lösenord hashas med argon2, aldrig i klartext
+- Lösenord hashas med `crypto.scrypt`, aldrig i klartext
 - Sessioner i httpOnly-cookies, lagrade i databasen
 - CSRF-skydd på alla formulär (dolt `csrf_token`-fält)
 - Rate limiting på inloggningsförsök

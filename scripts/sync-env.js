@@ -1,8 +1,9 @@
-// Körs innan Prisma CLI-kommandon (generate/migrate/deploy) och seed, så att
-// en DATABASE_URL som byggts ihop från DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/
-// DB_NAME (t.ex. satta som miljövariabler i cPanel) skrivs in i .env-filen.
-// Prisma CLI:t läser .env själv och känner annars inte till våra separata
-// DB_*-variabler. Gör ingenting om DATABASE_URL redan är satt explicit.
+// Körs innan migrations-/seed-scripten, så att en DATABASE_URL som byggts
+// ihop från DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME (t.ex. satta som
+// miljövariabler i cPanel) skrivs in i .env-filen. Fristående Node-script
+// som körs direkt (inte via `npm run`) läser annars bara .env, inte
+// processens egna miljövariabler satta av cPanel. Gör ingenting om
+// DATABASE_URL redan är satt explicit.
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();

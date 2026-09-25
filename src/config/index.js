@@ -4,7 +4,7 @@ const { resolveDatabaseUrl } = require('../lib/databaseUrl');
 
 // Om DATABASE_URL saknas byggs den ihop från DB_HOST/DB_PORT/DB_USER/
 // DB_PASSWORD/DB_NAME (med automatisk kodning av specialtecken). Sätts även
-// tillbaka på process.env så att @prisma/client (som läser DATABASE_URL
+// tillbaka på process.env så att src/lib/db.js (som läser DATABASE_URL
 // direkt) också hittar den.
 const databaseUrl = resolveDatabaseUrl(process.env);
 if (databaseUrl) {

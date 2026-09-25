@@ -13,63 +13,70 @@
 process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '2';
 
 require('../src/config');
-const { PrismaClient } = require('@prisma/client');
+const { pool, query, mapRow } = require('../src/lib/db');
 const { hashPassword } = require('../src/lib/passwordHash');
-
-const prisma = new PrismaClient();
 
 const PASSWORD = 'test123!';
 
 async function getOrCreateMaterial(name, sortOrder) {
-  const existing = await prisma.material.findFirst({ where: { name } });
-  if (existing) return existing;
-  return prisma.material.create({ data: { name, active: true, sortOrder } });
+  const rows = await query('SELECT * FROM materials WHERE name = ?', [name]);
+  if (rows.length > 0) return mapRow(rows[0]);
+  const result = await query('INSERT INTO materials (name, active, sort_order, created_at, updated_at) VALUES (?, 1, ?, NOW(), NOW())', [
+    name,
+    sortOrder,
+  ]);
+  return { id: result.insertId, name };
 }
 
 async function getOrCreateThickness(materialId, valueMm, sortOrder) {
-  const existing = await prisma.thickness.findFirst({ where: { materialId, valueMm } });
-  if (existing) return existing;
-  return prisma.thickness.create({ data: { materialId, valueMm, sortOrder, active: true } });
+  const rows = await query('SELECT * FROM thicknesses WHERE material_id = ? AND value_mm = ?', [materialId, valueMm]);
+  if (rows.length > 0) return mapRow(rows[0]);
+  const result = await query('INSERT INTO thicknesses (material_id, value_mm, sort_order, active) VALUES (?, ?, ?, 1)', [
+    materialId,
+    valueMm,
+    sortOrder,
+  ]);
+  return { id: result.insertId, materialId, valueMm };
 }
 
 async function getOrCreateCategory(name, sortOrder) {
-  const existing = await prisma.decorCategory.findFirst({ where: { name } });
-  if (existing) return existing;
-  return prisma.decorCategory.create({ data: { name, sortOrder, active: true } });
+  const rows = await query('SELECT * FROM decor_categories WHERE name = ?', [name]);
+  if (rows.length > 0) return mapRow(rows[0]);
+  const result = await query('INSERT INTO decor_categories (name, sort_order, active) VALUES (?, ?, 1)', [name, sortOrder]);
+  return { id: result.insertId, name };
 }
 
 async function getOrCreateBrand(name) {
-  const existing = await prisma.brand.findFirst({ where: { name } });
-  if (existing) return existing;
-  return prisma.brand.create({ data: { name, active: true } });
+  const rows = await query('SELECT * FROM brands WHERE name = ?', [name]);
+  if (rows.length > 0) return mapRow(rows[0]);
+  const result = await query('INSERT INTO brands (name, active) VALUES (?, 1)', [name]);
+  return { id: result.insertId, name };
 }
 
 async function getOrCreateDecor(def) {
-  const existing = await prisma.decor.findUnique({ where: { articleCode: def.articleCode } });
-  if (existing) return existing;
-  return prisma.decor.create({
-    data: {
-      materialId: def.materialId,
-      categoryId: def.categoryId,
-      articleCode: def.articleCode,
-      name: def.name,
-      surfaceTexture: def.surfaceTexture || null,
-      maxLengthMm: def.maxLengthMm || null,
-      status: 'AKTIV',
-      sortOrder: def.sortOrder || 0,
-    },
-  });
+  const rows = await query('SELECT * FROM decors WHERE article_code = ?', [def.articleCode]);
+  if (rows.length > 0) return mapRow(rows[0]);
+  const result = await query(
+    `INSERT INTO decors (material_id, category_id, article_code, name, surface_texture, max_length_mm, status, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'AKTIV', ?, NOW(), NOW())`,
+    [def.materialId, def.categoryId, def.articleCode, def.name, def.surfaceTexture || null, def.maxLengthMm || null, def.sortOrder || 0]
+  );
+  return { id: result.insertId, articleCode: def.articleCode };
 }
 
 async function ensureDecorThickness(decorId, thicknessId) {
-  const existing = await prisma.decorThickness.findFirst({ where: { decorId, thicknessId } });
-  if (existing) return existing;
-  return prisma.decorThickness.create({ data: { decorId, thicknessId, active: true } });
+  const rows = await query('SELECT * FROM decor_thicknesses WHERE decor_id = ? AND thickness_id = ?', [decorId, thicknessId]);
+  if (rows.length > 0) return;
+  await query('INSERT INTO decor_thicknesses (decor_id, thickness_id, active) VALUES (?, ?, 1)', [decorId, thicknessId]);
 }
 
 async function ensureCountertopPriceRows(priceListId, materialId, thicknessId, pricePerMm) {
-  const existing = await prisma.countertopPriceRow.findFirst({ where: { priceListId, materialId, thicknessId } });
-  if (existing) return;
+  const rows = await query('SELECT * FROM countertop_price_rows WHERE price_list_id = ? AND material_id = ? AND thickness_id = ?', [
+    priceListId,
+    materialId,
+    thicknessId,
+  ]);
+  if (rows.length > 0) return;
   const depthRanges = [
     { fromMm: 0, toMm: 635 },
     { fromMm: 636, toMm: 1250 },
@@ -78,49 +85,69 @@ async function ensureCountertopPriceRows(priceListId, materialId, thicknessId, p
   for (let i = 0; i < depthRanges.length; i++) {
     const range = depthRanges[i];
     const price = (pricePerMm * (1 + i * 0.35) * 10).toFixed(2);
-    await prisma.countertopPriceRow.create({
-      data: { priceListId, materialId, thicknessId, depthFromMm: range.fromMm, depthToMm: range.toMm, pricePerMeter: price },
-    });
+    await query(
+      'INSERT INTO countertop_price_rows (price_list_id, material_id, thickness_id, depth_from_mm, depth_to_mm, price_per_meter, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
+      [priceListId, materialId, thicknessId, range.fromMm, range.toMm, price]
+    );
   }
 }
 
 async function ensureEdgeProfileCompatibility(edgeProfileId, materialId, thicknessId, priceListId) {
-  const existingCompat = await prisma.edgeProfileCompatibility.findFirst({ where: { edgeProfileId, materialId, thicknessId } });
-  if (!existingCompat) {
-    await prisma.edgeProfileCompatibility.create({ data: { edgeProfileId, materialId, thicknessId } });
+  const compatRows = await query(
+    'SELECT * FROM edge_profile_compatibilities WHERE edge_profile_id = ? AND material_id = ? AND thickness_id = ?',
+    [edgeProfileId, materialId, thicknessId]
+  );
+  if (compatRows.length === 0) {
+    await query('INSERT INTO edge_profile_compatibilities (edge_profile_id, material_id, thickness_id) VALUES (?, ?, ?)', [
+      edgeProfileId,
+      materialId,
+      thicknessId,
+    ]);
   }
-  const existingPrice = await prisma.edgeProfilePrice.findFirst({ where: { priceListId, edgeProfileId, thicknessId } });
-  if (!existingPrice) {
-    await prisma.edgeProfilePrice.create({ data: { priceListId, edgeProfileId, thicknessId, price: '150.00' } });
+  const priceRows = await query('SELECT * FROM edge_profile_prices WHERE price_list_id = ? AND edge_profile_id = ? AND thickness_id = ?', [
+    priceListId,
+    edgeProfileId,
+    thicknessId,
+  ]);
+  if (priceRows.length === 0) {
+    await query('INSERT INTO edge_profile_prices (price_list_id, edge_profile_id, thickness_id, price, created_at) VALUES (?, ?, ?, ?, NOW())', [
+      priceListId,
+      edgeProfileId,
+      thicknessId,
+      '150.00',
+    ]);
   }
 }
 
 async function getOrCreateProduct(def) {
-  const existing = await prisma.product.findUnique({ where: { articleCode: def.articleCode } });
-  if (existing) return existing;
-  return prisma.product.create({
-    data: {
-      type: def.type,
-      brandId: def.brandId,
-      articleCode: def.articleCode,
-      name: def.name,
-      description: def.description || null,
-      active: true,
-      sortOrder: def.sortOrder || 0,
-    },
-  });
+  const rows = await query('SELECT * FROM products WHERE article_code = ?', [def.articleCode]);
+  if (rows.length > 0) return mapRow(rows[0]);
+  const result = await query(
+    `INSERT INTO products (type, brand_id, article_code, name, description, active, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 1, ?, NOW(), NOW())`,
+    [def.type, def.brandId, def.articleCode, def.name, def.description || null, def.sortOrder || 0]
+  );
+  return { id: result.insertId, articleCode: def.articleCode };
 }
 
 async function ensureProductPrice(priceListId, productId, price) {
-  const existing = await prisma.productPrice.findUnique({ where: { priceListId_productId: { priceListId, productId } } });
-  if (existing) return;
-  await prisma.productPrice.create({ data: { priceListId, productId, price } });
+  const rows = await query('SELECT * FROM product_prices WHERE price_list_id = ? AND product_id = ?', [priceListId, productId]);
+  if (rows.length > 0) return;
+  await query('INSERT INTO product_prices (price_list_id, product_id, price, created_at) VALUES (?, ?, ?, NOW())', [
+    priceListId,
+    productId,
+    price,
+  ]);
 }
 
 async function getOrCreateUser(email, data) {
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) return existing;
-  return prisma.user.create({ data: { email, ...data } });
+  const rows = await query('SELECT * FROM users WHERE email = ?', [email]);
+  if (rows.length > 0) return mapRow(rows[0]);
+  const result = await query(
+    'INSERT INTO users (email, company_id, password_hash, role, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())',
+    [email, data.companyId ?? null, data.passwordHash, data.role, data.active ? 1 : 0]
+  );
+  return { id: result.insertId, email };
 }
 
 async function main() {
@@ -147,9 +174,14 @@ async function main() {
   const catMonster = await getOrCreateCategory('Mönster', 4);
 
   console.log('Säkerställer prislista...');
-  let priceList = await prisma.priceList.findFirst({ orderBy: { validFrom: 'desc' } });
+  const priceListRows = mapRow((await query('SELECT * FROM price_lists ORDER BY valid_from DESC LIMIT 1'))[0]);
+  let priceList = priceListRows;
   if (!priceList) {
-    priceList = await prisma.priceList.create({ data: { name: 'Prislista 2026', validFrom: new Date('2026-01-01') } });
+    const result = await query('INSERT INTO price_lists (name, valid_from, created_at) VALUES (?, ?, NOW())', [
+      'Prislista 2026',
+      new Date('2026-01-01'),
+    ]);
+    priceList = { id: result.insertId };
   }
 
   console.log('Säkerställer priser per material/tjocklek...');
@@ -162,7 +194,7 @@ async function main() {
   await ensureCountertopPriceRows(priceList.id, corian.id, corian20.id, 4.1);
 
   console.log('Säkerställer kantprofiler för de nya material/tjocklekarna...');
-  const edgeProfiles = await prisma.edgeProfile.findMany({ where: { active: true } });
+  const edgeProfiles = await query('SELECT * FROM edge_profiles WHERE active = 1');
   const newCombos = [
     [laminat.id, laminat40.id],
     [tra.id, tra30.id],
@@ -244,22 +276,15 @@ async function main() {
   }
 
   console.log('Skapar exakt de två efterfrågade kontona (rör inga andra)...');
-  const company = await (async () => {
-    const existing = await prisma.company.findFirst({ where: { name: 'Nashulta Kök AB' } });
-    if (existing) return existing;
-    return prisma.company.create({
-      data: {
-        name: 'Nashulta Kök AB',
-        orgNumber: '556000-0001',
-        street: 'Köksvägen 1',
-        postalCode: '640 32',
-        city: 'Nashulta',
-        contactName: 'Rasmus',
-        contactEmail: 'rasmus@nashultakok.se',
-        active: true,
-      },
-    });
-  })();
+  let company = mapRow((await query('SELECT * FROM companies WHERE name = ?', ['Nashulta Kök AB']))[0]);
+  if (!company) {
+    const result = await query(
+      `INSERT INTO companies (name, org_number, street, postal_code, city, contact_name, contact_email, active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())`,
+      ['Nashulta Kök AB', '556000-0001', 'Köksvägen 1', '640 32', 'Nashulta', 'Rasmus', 'rasmus@nashultakok.se']
+    );
+    company = { id: result.insertId };
+  }
 
   await getOrCreateUser('rasmus@nashultakok.se', {
     companyId: company.id,
@@ -286,5 +311,5 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await pool.end();
   });

@@ -10,10 +10,9 @@
 process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '2';
 
 require('../src/config'); // löser DATABASE_URL (även från DB_HOST m.fl.)
-const { PrismaClient } = require('@prisma/client');
+const { pool } = require('../src/lib/db');
 const { hashPassword } = require('../src/lib/passwordHash');
-
-const prisma = new PrismaClient();
+const { findUserByEmail } = require('../src/services/users');
 
 async function main() {
   const [, , email, password] = process.argv;
@@ -32,22 +31,24 @@ async function main() {
   const normalizedEmail = email.toLowerCase().trim();
   const passwordHash = await hashPassword(password);
 
-  const user = await prisma.user.upsert({
-    where: { email: normalizedEmail },
-    create: {
-      email: normalizedEmail,
+  const existing = await findUserByEmail(normalizedEmail);
+  let userId;
+  if (existing) {
+    await pool.query('UPDATE users SET password_hash = ?, role = ?, active = 1, updated_at = NOW() WHERE id = ?', [
       passwordHash,
-      role: 'ADMIN',
-      active: true,
-    },
-    update: {
-      passwordHash,
-      role: 'ADMIN',
-      active: true,
-    },
-  });
+      'ADMIN',
+      existing.id,
+    ]);
+    userId = existing.id;
+  } else {
+    const [result] = await pool.query(
+      'INSERT INTO users (email, password_hash, role, active, created_at, updated_at) VALUES (?, ?, ?, 1, NOW(), NOW())',
+      [normalizedEmail, passwordHash, 'ADMIN']
+    );
+    userId = result.insertId;
+  }
 
-  console.log(`Admin-konto klart: ${user.email} (id ${user.id}). Du kan nu logga in med ditt lösenord.`);
+  console.log(`Admin-konto klart: ${normalizedEmail} (id ${userId}). Du kan nu logga in med ditt lösenord.`);
 }
 
 main()
@@ -56,5 +57,5 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await pool.end();
   });
