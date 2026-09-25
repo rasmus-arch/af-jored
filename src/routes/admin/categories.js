@@ -1,11 +1,15 @@
 const express = require('express');
-const prisma = require('../../lib/prisma');
+const { query, mapRow, mapRows } = require('../../lib/db');
 
 const router = express.Router();
 
+async function listCategories() {
+  return mapRows(await query('SELECT * FROM decor_categories ORDER BY sort_order ASC'));
+}
+
 router.get('/dekorkategorier', async (req, res, next) => {
   try {
-    const categories = await prisma.decorCategory.findMany({ orderBy: { sortOrder: 'asc' } });
+    const categories = await listCategories();
     res.render('admin/categories/list', { title: 'Dekorkategorier', categories, error: null });
   } catch (err) {
     next(err);
@@ -16,10 +20,13 @@ router.post('/dekorkategorier', async (req, res, next) => {
   try {
     const { name, sortOrder } = req.body;
     if (!name || !name.trim()) {
-      const categories = await prisma.decorCategory.findMany({ orderBy: { sortOrder: 'asc' } });
+      const categories = await listCategories();
       return res.status(400).render('admin/categories/list', { title: 'Dekorkategorier', categories, error: 'Namn krävs.' });
     }
-    await prisma.decorCategory.create({ data: { name: name.trim(), sortOrder: sortOrder ? Number(sortOrder) : 0, active: true } });
+    await query('INSERT INTO decor_categories (name, sort_order, active) VALUES (?, ?, 1)', [
+      name.trim(),
+      sortOrder ? Number(sortOrder) : 0,
+    ]);
     res.redirect('/admin/dekorkategorier');
   } catch (err) {
     next(err);
@@ -31,7 +38,11 @@ router.post('/dekorkategorier/:id', async (req, res, next) => {
     const id = Number(req.params.id);
     const { name, sortOrder } = req.body;
     if (!name || !name.trim()) return res.redirect('/admin/dekorkategorier');
-    await prisma.decorCategory.update({ where: { id }, data: { name: name.trim(), sortOrder: sortOrder ? Number(sortOrder) : 0 } });
+    await query('UPDATE decor_categories SET name = ?, sort_order = ? WHERE id = ?', [
+      name.trim(),
+      sortOrder ? Number(sortOrder) : 0,
+      id,
+    ]);
     res.redirect('/admin/dekorkategorier');
   } catch (err) {
     next(err);
@@ -41,9 +52,10 @@ router.post('/dekorkategorier/:id', async (req, res, next) => {
 router.post('/dekorkategorier/:id/vaxla-aktiv', async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const category = await prisma.decorCategory.findUnique({ where: { id } });
+    const rows = await query('SELECT * FROM decor_categories WHERE id = ?', [id]);
+    const category = mapRow(rows[0]);
     if (!category) return res.status(404).render('error', { title: 'Hittades inte', message: 'Kategorin kunde inte hittas.' });
-    await prisma.decorCategory.update({ where: { id }, data: { active: !category.active } });
+    await query('UPDATE decor_categories SET active = ? WHERE id = ?', [category.active ? 0 : 1, id]);
     res.redirect('/admin/dekorkategorier');
   } catch (err) {
     next(err);

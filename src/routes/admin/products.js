@@ -1,5 +1,5 @@
 const express = require('express');
-const prisma = require('../../lib/prisma');
+const { query, mapRow, mapRows } = require('../../lib/db');
 const { uploadImage, imagePublicUrl } = require('../../middleware/upload');
 const { verifyCsrfAfterUpload } = require('../../middleware/csrf');
 
@@ -12,15 +12,32 @@ const PRODUCT_TYPES = [
 ];
 
 async function getFormOptions() {
-  const brands = await prisma.brand.findMany({ orderBy: { name: 'asc' } });
+  const brands = mapRows(await query('SELECT * FROM brands ORDER BY name ASC'));
   return { brands, productTypes: PRODUCT_TYPES };
+}
+
+async function findProductById(id) {
+  const rows = await query('SELECT * FROM products WHERE id = ?', [id]);
+  return mapRow(rows[0]) || null;
+}
+
+async function findProductByArticleCode(articleCode) {
+  const rows = await query('SELECT * FROM products WHERE article_code = ?', [articleCode]);
+  return mapRow(rows[0]) || null;
 }
 
 router.get('/produkter', async (req, res, next) => {
   try {
-    const products = await prisma.product.findMany({
-      include: { brand: true },
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    const rows = await query(
+      `SELECT p.*, b.name AS b_name
+       FROM products p
+       JOIN brands b ON b.id = p.brand_id
+       ORDER BY p.sort_order ASC, p.name ASC`
+    );
+    const products = rows.map((row) => {
+      const product = mapRow(row);
+      product.brand = { name: row.b_name };
+      return product;
     });
     res.render('admin/products/list', { title: 'Produkter', products, productTypes: PRODUCT_TYPES });
   } catch (err) {
@@ -62,7 +79,7 @@ router.post('/produkter', uploadImage.single('image'), verifyCsrfAfterUpload, as
     }
 
     if (data.articleCode) {
-      const existing = await prisma.product.findUnique({ where: { articleCode: data.articleCode } });
+      const existing = await findProductByArticleCode(data.articleCode);
       if (existing) {
         return res.status(400).render('admin/products/form', {
           title: 'Ny produkt', product: { ...data }, ...options,
@@ -71,9 +88,11 @@ router.post('/produkter', uploadImage.single('image'), verifyCsrfAfterUpload, as
       }
     }
 
-    await prisma.product.create({
-      data: { ...data, imageUrl: req.file ? imagePublicUrl(req.file.filename) : null },
-    });
+    await query(
+      `INSERT INTO products (type, brand_id, article_code, name, description, image_url, active, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [data.type, data.brandId, data.articleCode, data.name, data.description, req.file ? imagePublicUrl(req.file.filename) : null, data.active ? 1 : 0, data.sortOrder]
+    );
 
     res.redirect('/admin/produkter');
   } catch (err) {
@@ -84,7 +103,7 @@ router.post('/produkter', uploadImage.single('image'), verifyCsrfAfterUpload, as
 router.get('/produkter/:id/redigera', async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const product = await prisma.product.findUnique({ where: { id } });
+    const product = await findProductById(id);
     if (!product) return res.status(404).render('error', { title: 'Hittades inte', message: 'Produkten kunde inte hittas.' });
     const options = await getFormOptions();
     res.render('admin/products/form', { title: `Redigera ${product.name}`, product, ...options, error: null });
@@ -96,7 +115,7 @@ router.get('/produkter/:id/redigera', async (req, res, next) => {
 router.post('/produkter/:id', uploadImage.single('image'), verifyCsrfAfterUpload, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const product = await prisma.product.findUnique({ where: { id } });
+    const product = await findProductById(id);
     if (!product) return res.status(404).render('error', { title: 'Hittades inte', message: 'Produkten kunde inte hittas.' });
 
     const options = await getFormOptions();
@@ -110,7 +129,7 @@ router.post('/produkter/:id', uploadImage.single('image'), verifyCsrfAfterUpload
     }
 
     if (data.articleCode) {
-      const existing = await prisma.product.findUnique({ where: { articleCode: data.articleCode } });
+      const existing = await findProductByArticleCode(data.articleCode);
       if (existing && existing.id !== id) {
         return res.status(400).render('admin/products/form', {
           title: `Redigera ${product.name}`, product: { ...product, ...data }, ...options,
@@ -119,10 +138,12 @@ router.post('/produkter/:id', uploadImage.single('image'), verifyCsrfAfterUpload
       }
     }
 
-    await prisma.product.update({
-      where: { id },
-      data: { ...data, ...(req.file ? { imageUrl: imagePublicUrl(req.file.filename) } : {}) },
-    });
+    await query(
+      `UPDATE products SET type = ?, brand_id = ?, article_code = ?, name = ?, description = ?, active = ?, sort_order = ?, updated_at = NOW()${req.file ? ', image_url = ?' : ''} WHERE id = ?`,
+      req.file
+        ? [data.type, data.brandId, data.articleCode, data.name, data.description, data.active ? 1 : 0, data.sortOrder, imagePublicUrl(req.file.filename), id]
+        : [data.type, data.brandId, data.articleCode, data.name, data.description, data.active ? 1 : 0, data.sortOrder, id]
+    );
 
     res.redirect('/admin/produkter');
   } catch (err) {
@@ -133,9 +154,9 @@ router.post('/produkter/:id', uploadImage.single('image'), verifyCsrfAfterUpload
 router.post('/produkter/:id/vaxla-aktiv', async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const product = await prisma.product.findUnique({ where: { id } });
+    const product = await findProductById(id);
     if (!product) return res.status(404).render('error', { title: 'Hittades inte', message: 'Produkten kunde inte hittas.' });
-    await prisma.product.update({ where: { id }, data: { active: !product.active } });
+    await query('UPDATE products SET active = ?, updated_at = NOW() WHERE id = ?', [product.active ? 0 : 1, id]);
     res.redirect('/admin/produkter');
   } catch (err) {
     next(err);

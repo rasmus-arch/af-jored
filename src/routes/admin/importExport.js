@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
-const prisma = require('../../lib/prisma');
+const { query, mapRow, mapRows } = require('../../lib/db');
+const { createAuditLog } = require('../../services/users');
 const { parseSpreadsheet, toCsv, toXlsxBuffer } = require('../../services/spreadsheet');
 const { verifyCsrfAfterUpload } = require('../../middleware/csrf');
 
@@ -37,8 +38,8 @@ const DISCOUNT_COLUMNS = [
 router.get('/import-export', async (req, res, next) => {
   try {
     const [priceLists, companies] = await Promise.all([
-      prisma.priceList.findMany({ orderBy: { validFrom: 'desc' } }),
-      prisma.company.findMany({ orderBy: { name: 'asc' } }),
+      mapRows(await query('SELECT * FROM price_lists ORDER BY valid_from DESC')),
+      mapRows(await query('SELECT * FROM companies ORDER BY name ASC')),
     ]);
     res.render('admin/importExport/index', { title: 'Import/export', priceLists, companies });
   } catch (err) {
@@ -50,30 +51,33 @@ router.get('/import-export', async (req, res, next) => {
 
 router.get('/import-export/dekorer/export', async (req, res, next) => {
   try {
-    const decors = await prisma.decor.findMany({
-      include: { material: true, category: true },
-      orderBy: { articleCode: 'asc' },
-    });
-    const rows = decors.map((d) => ({
-      artikelkod: d.articleCode,
+    const rows = await query(
+      `SELECT d.*, m.name AS m_name, c.name AS c_name
+       FROM decors d
+       JOIN materials m ON m.id = d.material_id
+       JOIN decor_categories c ON c.id = d.category_id
+       ORDER BY d.article_code ASC`
+    );
+    const data = rows.map((d) => ({
+      artikelkod: d.article_code,
       namn: d.name,
-      material: d.material.name,
-      kategori: d.category.name,
-      ytstruktur: d.surfaceTexture || '',
-      maxlangd_mm: d.maxLengthMm || '',
+      material: d.m_name,
+      kategori: d.c_name,
+      ytstruktur: d.surface_texture || '',
+      maxlangd_mm: d.max_length_mm || '',
       status: d.status,
       anmarkning: d.notes || '',
     }));
 
     if (req.query.format === 'xlsx') {
-      const buffer = await toXlsxBuffer(rows, DECOR_COLUMNS);
+      const buffer = await toXlsxBuffer(data, DECOR_COLUMNS);
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename="dekorer.xlsx"');
       return res.send(buffer);
     }
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="dekorer.csv"');
-    res.send(toCsv(rows, DECOR_COLUMNS));
+    res.send(toCsv(data, DECOR_COLUMNS));
   } catch (err) {
     next(err);
   }
@@ -85,9 +89,9 @@ function normalize(str) {
 
 async function validateDecorRows(rawRows) {
   const [materials, categories, existingDecors] = await Promise.all([
-    prisma.material.findMany(),
-    prisma.decorCategory.findMany(),
-    prisma.decor.findMany({ select: { id: true, articleCode: true } }),
+    mapRows(await query('SELECT * FROM materials')),
+    mapRows(await query('SELECT * FROM decor_categories')),
+    mapRows(await query('SELECT id, article_code FROM decors')),
   ]);
   const materialByName = new Map(materials.map((m) => [normalize(m.name), m]));
   const categoryByName = new Map(categories.map((c) => [normalize(c.name), c]));
@@ -159,15 +163,27 @@ router.post('/import-export/dekorer/bekrafta', async (req, res, next) => {
     const validRows = staging.filter((r) => r.errors.length === 0);
 
     for (const row of validRows) {
+      const d = row.data;
       if (row.action === 'update') {
-        await prisma.decor.update({ where: { id: row.existingId }, data: row.data });
+        await query(
+          `UPDATE decors SET material_id = ?, category_id = ?, article_code = ?, name = ?, surface_texture = ?, max_length_mm = ?, status = ?, notes = ?, updated_at = NOW() WHERE id = ?`,
+          [d.materialId, d.categoryId, d.articleCode, d.name, d.surfaceTexture, d.maxLengthMm, d.status, d.notes, row.existingId]
+        );
       } else {
-        await prisma.decor.create({ data: row.data });
+        await query(
+          `INSERT INTO decors (material_id, category_id, article_code, name, surface_texture, max_length_mm, status, notes, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          [d.materialId, d.categoryId, d.articleCode, d.name, d.surfaceTexture, d.maxLengthMm, d.status, d.notes]
+        );
       }
     }
 
-    await prisma.auditLog.create({
-      data: { userId: req.session.user.id, action: 'IMPORT', entityType: 'Decor', newValue: { count: validRows.length }, ipAddress: req.ip },
+    await createAuditLog({
+      userId: req.session.user.id,
+      action: 'IMPORT',
+      entityType: 'Decor',
+      newValue: { count: validRows.length },
+      ipAddress: req.ip,
     });
 
     delete req.session.decorImportStaging;
@@ -182,17 +198,21 @@ router.post('/import-export/dekorer/bekrafta', async (req, res, next) => {
 router.get('/import-export/prisrader/export', async (req, res, next) => {
   try {
     const priceListId = Number(req.query.priceListId);
-    const rows = await prisma.countertopPriceRow.findMany({
-      where: { priceListId },
-      include: { material: true, thickness: true },
-      orderBy: [{ materialId: 'asc' }, { thicknessId: 'asc' }, { depthFromMm: 'asc' }],
-    });
+    const rows = await query(
+      `SELECT r.*, m.name AS m_name, t.value_mm AS t_value_mm
+       FROM countertop_price_rows r
+       JOIN materials m ON m.id = r.material_id
+       JOIN thicknesses t ON t.id = r.thickness_id
+       WHERE r.price_list_id = ?
+       ORDER BY r.material_id ASC, r.thickness_id ASC, r.depth_from_mm ASC`,
+      [priceListId]
+    );
     const data = rows.map((r) => ({
-      material: r.material.name,
-      tjocklek_mm: r.thickness.valueMm,
-      djup_fran_mm: r.depthFromMm,
-      djup_till_mm: r.depthToMm,
-      pris_per_lopmeter: r.pricePerMeter.toFixed(2),
+      material: r.m_name,
+      tjocklek_mm: r.t_value_mm,
+      djup_fran_mm: r.depth_from_mm,
+      djup_till_mm: r.depth_to_mm,
+      pris_per_lopmeter: Number(r.price_per_meter).toFixed(2),
     }));
 
     if (req.query.format === 'xlsx') {
@@ -210,9 +230,17 @@ router.get('/import-export/prisrader/export', async (req, res, next) => {
 });
 
 async function validatePriceRows(rawRows, priceListId) {
-  const materials = await prisma.material.findMany({ include: { thicknesses: true } });
+  const [materials, thicknesses, existingRows] = await Promise.all([
+    mapRows(await query('SELECT * FROM materials')),
+    mapRows(await query('SELECT * FROM thicknesses')),
+    mapRows(await query('SELECT * FROM countertop_price_rows WHERE price_list_id = ?', [priceListId])),
+  ]);
   const materialByName = new Map(materials.map((m) => [normalize(m.name), m]));
-  const existingRows = await prisma.countertopPriceRow.findMany({ where: { priceListId } });
+  const thicknessesByMaterialId = new Map();
+  for (const t of thicknesses) {
+    if (!thicknessesByMaterialId.has(t.materialId)) thicknessesByMaterialId.set(t.materialId, []);
+    thicknessesByMaterialId.get(t.materialId).push(t);
+  }
 
   return rawRows.map((row, index) => {
     const errors = [];
@@ -226,15 +254,14 @@ async function validatePriceRows(rawRows, priceListId) {
     if (!material) errors.push(`Materialet "${materialName}" finns inte.`);
     let thickness = null;
     if (material) {
-      thickness = material.thicknesses.find((t) => t.valueMm === thicknessMm);
+      thickness = (thicknessesByMaterialId.get(material.id) || []).find((t) => t.valueMm === thicknessMm);
       if (!thickness) errors.push(`Tjockleken ${row.tjocklek_mm} mm finns inte för ${materialName}.`);
     }
     if (Number.isNaN(depthFromMm) || Number.isNaN(depthToMm) || depthFromMm > depthToMm) errors.push('Ogiltigt djupintervall.');
     if (!pricePerMeter || Number.isNaN(Number(pricePerMeter))) errors.push('Ogiltigt pris.');
 
-    let overlapsExisting = false;
     if (thickness && !Number.isNaN(depthFromMm) && !Number.isNaN(depthToMm)) {
-      overlapsExisting = existingRows.some(
+      const overlapsExisting = existingRows.some(
         (r) => r.materialId === material.id && r.thicknessId === thickness.id && depthFromMm <= r.depthToMm && r.depthFromMm <= depthToMm
       );
       if (overlapsExisting) errors.push('Djupintervallet överlappar en befintlig rad i prislistan.');
@@ -260,7 +287,8 @@ router.post('/import-export/prisrader/forhandsgranska', upload.single('file'), v
     const validated = await validatePriceRows(rawRows, priceListId);
     req.session.priceRowImportStaging = { priceListId, rows: validated };
 
-    const priceList = await prisma.priceList.findUnique({ where: { id: priceListId } });
+    const rows = await query('SELECT * FROM price_lists WHERE id = ?', [priceListId]);
+    const priceList = mapRow(rows[0]);
     res.render('admin/importExport/priceRowPreview', { title: 'Förhandsgranska prisimport', rows: validated, priceList });
   } catch (err) {
     next(err);
@@ -274,11 +302,20 @@ router.post('/import-export/prisrader/bekrafta', async (req, res, next) => {
     const validRows = staging.rows.filter((r) => r.errors.length === 0 && r.data);
 
     for (const row of validRows) {
-      await prisma.countertopPriceRow.create({ data: row.data });
+      const d = row.data;
+      await query(
+        'INSERT INTO countertop_price_rows (price_list_id, material_id, thickness_id, depth_from_mm, depth_to_mm, price_per_meter, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
+        [d.priceListId, d.materialId, d.thicknessId, d.depthFromMm, d.depthToMm, d.pricePerMeter]
+      );
     }
 
-    await prisma.auditLog.create({
-      data: { userId: req.session.user.id, action: 'IMPORT', entityType: 'CountertopPriceRow', entityId: staging.priceListId, newValue: { count: validRows.length }, ipAddress: req.ip },
+    await createAuditLog({
+      userId: req.session.user.id,
+      action: 'IMPORT',
+      entityType: 'CountertopPriceRow',
+      entityId: staging.priceListId,
+      newValue: { count: validRows.length },
+      ipAddress: req.ip,
     });
 
     delete req.session.priceRowImportStaging;
@@ -293,16 +330,20 @@ router.post('/import-export/prisrader/bekrafta', async (req, res, next) => {
 router.get('/import-export/rabatter/export', async (req, res, next) => {
   try {
     const companyId = Number(req.query.companyId);
-    const rules = await prisma.discountRule.findMany({
-      where: { companyId },
-      include: { material: true, brand: true },
-    });
-    const data = rules.map((r) => ({
-      material: r.material ? r.material.name : '',
-      varumarke: r.brand ? r.brand.name : '',
-      rabatt_procent: r.discountPercent.toFixed(2),
-      giltig_fran: r.validFrom ? r.validFrom.toISOString().slice(0, 10) : '',
-      giltig_till: r.validTo ? r.validTo.toISOString().slice(0, 10) : '',
+    const rows = await query(
+      `SELECT r.*, m.name AS m_name, b.name AS b_name
+       FROM discount_rules r
+       LEFT JOIN materials m ON m.id = r.material_id
+       LEFT JOIN brands b ON b.id = r.brand_id
+       WHERE r.company_id = ?`,
+      [companyId]
+    );
+    const data = rows.map((r) => ({
+      material: r.m_name || '',
+      varumarke: r.b_name || '',
+      rabatt_procent: Number(r.discount_percent).toFixed(2),
+      giltig_fran: r.valid_from ? r.valid_from.toISOString().slice(0, 10) : '',
+      giltig_till: r.valid_to ? r.valid_to.toISOString().slice(0, 10) : '',
     }));
 
     if (req.query.format === 'xlsx') {
@@ -320,8 +361,10 @@ router.get('/import-export/rabatter/export', async (req, res, next) => {
 });
 
 async function validateDiscountRows(rawRows) {
-  const materials = await prisma.material.findMany();
-  const brands = await prisma.brand.findMany();
+  const [materials, brands] = await Promise.all([
+    mapRows(await query('SELECT * FROM materials')),
+    mapRows(await query('SELECT * FROM brands')),
+  ]);
   const materialByName = new Map(materials.map((m) => [normalize(m.name), m]));
   const brandByName = new Map(brands.map((b) => [normalize(b.name), b]));
 
@@ -363,7 +406,8 @@ router.post('/import-export/rabatter/forhandsgranska', upload.single('file'), ve
     const validated = await validateDiscountRows(rawRows);
     req.session.discountImportStaging = { companyId, rows: validated };
 
-    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    const rows = await query('SELECT * FROM companies WHERE id = ?', [companyId]);
+    const company = mapRow(rows[0]);
     res.render('admin/importExport/discountPreview', { title: 'Förhandsgranska rabattimport', rows: validated, company });
   } catch (err) {
     next(err);
@@ -377,20 +421,20 @@ router.post('/import-export/rabatter/bekrafta', async (req, res, next) => {
     const validRows = staging.rows.filter((r) => r.errors.length === 0);
 
     for (const row of validRows) {
-      await prisma.discountRule.create({
-        data: {
-          companyId: staging.companyId,
-          materialId: row.data.materialId,
-          brandId: row.data.brandId,
-          discountPercent: row.data.discountPercent,
-          validFrom: row.data.validFrom ? new Date(row.data.validFrom) : null,
-          validTo: row.data.validTo ? new Date(row.data.validTo) : null,
-        },
-      });
+      const d = row.data;
+      await query(
+        'INSERT INTO discount_rules (company_id, material_id, brand_id, discount_percent, valid_from, valid_to, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
+        [staging.companyId, d.materialId, d.brandId, d.discountPercent, d.validFrom ? new Date(d.validFrom) : null, d.validTo ? new Date(d.validTo) : null]
+      );
     }
 
-    await prisma.auditLog.create({
-      data: { userId: req.session.user.id, action: 'IMPORT', entityType: 'DiscountRule', entityId: staging.companyId, newValue: { count: validRows.length }, ipAddress: req.ip },
+    await createAuditLog({
+      userId: req.session.user.id,
+      action: 'IMPORT',
+      entityType: 'DiscountRule',
+      entityId: staging.companyId,
+      newValue: { count: validRows.length },
+      ipAddress: req.ip,
     });
 
     delete req.session.discountImportStaging;

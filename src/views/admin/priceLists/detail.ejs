@@ -39,7 +39,7 @@
               &ndash;
               <input form="rowform-<%= r.id %>" type="number" name="depthToMm" value="<%= r.depthToMm %>" style="width:5rem" aria-label="Djup till" />
             </td>
-            <td><input form="rowform-<%= r.id %>" type="text" name="pricePerMeter" value="<%= r.pricePerMeter.toFixed(2) %>" style="width:6rem" aria-label="Kr per löpmeter" /></td>
+            <td><input form="rowform-<%= r.id %>" type="text" name="pricePerMeter" value="<%= Number(r.pricePerMeter).toFixed(2) %>" style="width:6rem" aria-label="Kr per löpmeter" /></td>
             <td>
               <button form="rowform-<%= r.id %>" type="submit">Spara</button>
               <form class="inline-form" method="post" action="/admin/prislistor/<%= priceList.id %>/rader/<%= r.id %>/ta-bort">
@@ -91,7 +91,7 @@
           <tr>
             <td><%= p.edgeProfile.name %></td>
             <td><%= p.thickness ? p.thickness.valueMm + ' mm' : 'Alla tjocklekar' %></td>
-            <td><%= p.price.toFixed(2) %> kr</td>
+            <td><%= Number(p.price).toFixed(2) %> kr</td>
           </tr>
         <% }) %>
       </tbody>
@@ -124,7 +124,7 @@
           <tr>
             <td><%= p.addOn.name %></td>
             <td><%= p.thickness ? p.thickness.valueMm + ' mm' : 'Alla tjocklekar' %></td>
-            <td><%= p.price.toFixed(2) %> kr</td>
+            <td><%= Number(p.price).toFixed(2) %> kr</td>
           </tr>
         <% }) %>
       </tbody>
@@ -157,7 +157,7 @@
           <tr>
             <td><%= p.product.name %></td>
             <td><%= p.product.brand.name %></td>
-            <td><%= p.price.toFixed(2) %> kr/st</td>
+            <td><%= Number(p.price).toFixed(2) %> kr/st</td>
           </tr>
         <% }) %>
       </tbody>

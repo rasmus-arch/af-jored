@@ -1,11 +1,11 @@
 const express = require('express');
-const prisma = require('../../lib/prisma');
+const { query, mapRow, mapRows } = require('../../lib/db');
 
 const router = express.Router();
 
 router.get('/nyheter', async (req, res, next) => {
   try {
-    const posts = await prisma.newsPost.findMany({ orderBy: { createdAt: 'desc' } });
+    const posts = mapRows(await query('SELECT * FROM news_posts ORDER BY created_at DESC'));
     res.render('admin/news/list', { title: 'Nyheter', posts });
   } catch (err) {
     next(err);
@@ -22,15 +22,10 @@ router.post('/nyheter', async (req, res, next) => {
     if (!title || !title.trim() || !body || !body.trim()) {
       return res.status(400).render('admin/news/form', { title: 'Ny nyhet', post: req.body, error: 'Rubrik och text krävs.' });
     }
-    await prisma.newsPost.create({
-      data: {
-        title: title.trim(),
-        body: body.trim(),
-        publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
-        active: true,
-        createdById: req.session.user.id,
-      },
-    });
+    await query(
+      'INSERT INTO news_posts (title, body, published_at, active, created_by_id, created_at, updated_at) VALUES (?, ?, ?, 1, ?, NOW(), NOW())',
+      [title.trim(), body.trim(), publishedAt ? new Date(publishedAt) : new Date(), req.session.user.id]
+    );
     res.redirect('/admin/nyheter');
   } catch (err) {
     next(err);
@@ -39,7 +34,8 @@ router.post('/nyheter', async (req, res, next) => {
 
 router.get('/nyheter/:id/redigera', async (req, res, next) => {
   try {
-    const post = await prisma.newsPost.findUnique({ where: { id: Number(req.params.id) } });
+    const rows = await query('SELECT * FROM news_posts WHERE id = ?', [Number(req.params.id)]);
+    const post = mapRow(rows[0]);
     if (!post) return res.status(404).render('error', { title: 'Hittades inte', message: 'Nyheten kunde inte hittas.' });
     res.render('admin/news/form', { title: 'Redigera nyhet', post, error: null });
   } catch (err) {
@@ -50,7 +46,8 @@ router.get('/nyheter/:id/redigera', async (req, res, next) => {
 router.post('/nyheter/:id', async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const post = await prisma.newsPost.findUnique({ where: { id } });
+    const rows = await query('SELECT * FROM news_posts WHERE id = ?', [id]);
+    const post = mapRow(rows[0]);
     if (!post) return res.status(404).render('error', { title: 'Hittades inte', message: 'Nyheten kunde inte hittas.' });
 
     const { title, body, publishedAt } = req.body;
@@ -58,10 +55,12 @@ router.post('/nyheter/:id', async (req, res, next) => {
       return res.status(400).render('admin/news/form', { title: 'Redigera nyhet', post: { ...post, title, body }, error: 'Rubrik och text krävs.' });
     }
 
-    await prisma.newsPost.update({
-      where: { id },
-      data: { title: title.trim(), body: body.trim(), publishedAt: publishedAt ? new Date(publishedAt) : post.publishedAt },
-    });
+    await query('UPDATE news_posts SET title = ?, body = ?, published_at = ?, updated_at = NOW() WHERE id = ?', [
+      title.trim(),
+      body.trim(),
+      publishedAt ? new Date(publishedAt) : post.publishedAt,
+      id,
+    ]);
     res.redirect('/admin/nyheter');
   } catch (err) {
     next(err);
@@ -71,9 +70,10 @@ router.post('/nyheter/:id', async (req, res, next) => {
 router.post('/nyheter/:id/vaxla-aktiv', async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const post = await prisma.newsPost.findUnique({ where: { id } });
+    const rows = await query('SELECT * FROM news_posts WHERE id = ?', [id]);
+    const post = mapRow(rows[0]);
     if (!post) return res.status(404).render('error', { title: 'Hittades inte', message: 'Nyheten kunde inte hittas.' });
-    await prisma.newsPost.update({ where: { id }, data: { active: !post.active } });
+    await query('UPDATE news_posts SET active = ?, updated_at = NOW() WHERE id = ?', [post.active ? 0 : 1, id]);
     res.redirect('/admin/nyheter');
   } catch (err) {
     next(err);

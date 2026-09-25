@@ -1,21 +1,34 @@
 const express = require('express');
-const prisma = require('../../lib/prisma');
+const { query, mapRow, mapRows } = require('../../lib/db');
 const { uploadImage, imagePublicUrl } = require('../../middleware/upload');
 const { verifyCsrfAfterUpload } = require('../../middleware/csrf');
 
 const router = express.Router();
 
 async function getMaterialsWithThicknesses() {
-  return prisma.material.findMany({
-    where: { active: true },
-    orderBy: { sortOrder: 'asc' },
-    include: { thicknesses: { where: { active: true }, orderBy: { valueMm: 'asc' } } },
-  });
+  const [materials, thicknesses] = await Promise.all([
+    mapRows(await query('SELECT * FROM materials WHERE active = 1 ORDER BY sort_order ASC')),
+    mapRows(await query('SELECT * FROM thicknesses WHERE active = 1 ORDER BY value_mm ASC')),
+  ]);
+  const thicknessesByMaterialId = new Map();
+  for (const t of thicknesses) {
+    if (!thicknessesByMaterialId.has(t.materialId)) thicknessesByMaterialId.set(t.materialId, []);
+    thicknessesByMaterialId.get(t.materialId).push(t);
+  }
+  for (const m of materials) {
+    m.thicknesses = thicknessesByMaterialId.get(m.id) || [];
+  }
+  return materials;
+}
+
+async function findEdgeProfileById(id) {
+  const rows = await query('SELECT * FROM edge_profiles WHERE id = ?', [id]);
+  return mapRow(rows[0]) || null;
 }
 
 router.get('/kantprofiler', async (req, res, next) => {
   try {
-    const edgeProfiles = await prisma.edgeProfile.findMany({ orderBy: { name: 'asc' } });
+    const edgeProfiles = mapRows(await query('SELECT * FROM edge_profiles ORDER BY name ASC'));
     res.render('admin/edgeProfiles/list', { title: 'Kantprofiler', edgeProfiles });
   } catch (err) {
     next(err);
@@ -41,20 +54,19 @@ router.post('/kantprofiler', uploadImage.single('image'), verifyCsrfAfterUpload,
       });
     }
 
-    const edgeProfile = await prisma.edgeProfile.create({
-      data: {
-        name: name.trim(),
-        description: description || null,
-        priceUnit: priceUnit === 'STYCK' ? 'STYCK' : 'LOPMETER',
-        imageUrl: req.file ? imagePublicUrl(req.file.filename) : null,
-        active: true,
-      },
-    });
+    const result = await query(
+      'INSERT INTO edge_profiles (name, description, price_unit, image_url, active) VALUES (?, ?, ?, ?, 1)',
+      [name.trim(), description || null, priceUnit === 'STYCK' ? 'STYCK' : 'LOPMETER', req.file ? imagePublicUrl(req.file.filename) : null]
+    );
 
     const compatKeys = [].concat(req.body.compatibility || []);
     for (const key of compatKeys) {
       const [materialId, thicknessId] = key.split(':').map(Number);
-      await prisma.edgeProfileCompatibility.create({ data: { edgeProfileId: edgeProfile.id, materialId, thicknessId } });
+      await query('INSERT INTO edge_profile_compatibilities (edge_profile_id, material_id, thickness_id) VALUES (?, ?, ?)', [
+        result.insertId,
+        materialId,
+        thicknessId,
+      ]);
     }
 
     res.redirect('/admin/kantprofiler');
@@ -66,10 +78,10 @@ router.post('/kantprofiler', uploadImage.single('image'), verifyCsrfAfterUpload,
 router.get('/kantprofiler/:id/redigera', async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const edgeProfile = await prisma.edgeProfile.findUnique({ where: { id } });
+    const edgeProfile = await findEdgeProfileById(id);
     if (!edgeProfile) return res.status(404).render('error', { title: 'Hittades inte', message: 'Kantprofilen kunde inte hittas.' });
     const materials = await getMaterialsWithThicknesses();
-    const compatibilities = await prisma.edgeProfileCompatibility.findMany({ where: { edgeProfileId: id } });
+    const compatibilities = mapRows(await query('SELECT * FROM edge_profile_compatibilities WHERE edge_profile_id = ?', [id]));
     const selectedCompatibilities = compatibilities.map((c) => `${c.materialId}:${c.thicknessId}`);
     res.render('admin/edgeProfiles/form', { title: `Redigera ${edgeProfile.name}`, edgeProfile, materials, selectedCompatibilities, error: null });
   } catch (err) {
@@ -80,7 +92,7 @@ router.get('/kantprofiler/:id/redigera', async (req, res, next) => {
 router.post('/kantprofiler/:id', uploadImage.single('image'), verifyCsrfAfterUpload, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const edgeProfile = await prisma.edgeProfile.findUnique({ where: { id } });
+    const edgeProfile = await findEdgeProfileById(id);
     if (!edgeProfile) return res.status(404).render('error', { title: 'Hittades inte', message: 'Kantprofilen kunde inte hittas.' });
 
     const { name, description, priceUnit } = req.body;
@@ -95,21 +107,22 @@ router.post('/kantprofiler/:id', uploadImage.single('image'), verifyCsrfAfterUpl
       });
     }
 
-    await prisma.edgeProfile.update({
-      where: { id },
-      data: {
-        name: name.trim(),
-        description: description || null,
-        priceUnit: priceUnit === 'STYCK' ? 'STYCK' : 'LOPMETER',
-        ...(req.file ? { imageUrl: imagePublicUrl(req.file.filename) } : {}),
-      },
-    });
+    await query(
+      `UPDATE edge_profiles SET name = ?, description = ?, price_unit = ?${req.file ? ', image_url = ?' : ''} WHERE id = ?`,
+      req.file
+        ? [name.trim(), description || null, priceUnit === 'STYCK' ? 'STYCK' : 'LOPMETER', imagePublicUrl(req.file.filename), id]
+        : [name.trim(), description || null, priceUnit === 'STYCK' ? 'STYCK' : 'LOPMETER', id]
+    );
 
-    await prisma.edgeProfileCompatibility.deleteMany({ where: { edgeProfileId: id } });
+    await query('DELETE FROM edge_profile_compatibilities WHERE edge_profile_id = ?', [id]);
     const compatKeys = [].concat(req.body.compatibility || []);
     for (const key of compatKeys) {
       const [materialId, thicknessId] = key.split(':').map(Number);
-      await prisma.edgeProfileCompatibility.create({ data: { edgeProfileId: id, materialId, thicknessId } });
+      await query('INSERT INTO edge_profile_compatibilities (edge_profile_id, material_id, thickness_id) VALUES (?, ?, ?)', [
+        id,
+        materialId,
+        thicknessId,
+      ]);
     }
 
     res.redirect('/admin/kantprofiler');
@@ -121,9 +134,9 @@ router.post('/kantprofiler/:id', uploadImage.single('image'), verifyCsrfAfterUpl
 router.post('/kantprofiler/:id/vaxla-aktiv', async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const edgeProfile = await prisma.edgeProfile.findUnique({ where: { id } });
+    const edgeProfile = await findEdgeProfileById(id);
     if (!edgeProfile) return res.status(404).render('error', { title: 'Hittades inte', message: 'Kantprofilen kunde inte hittas.' });
-    await prisma.edgeProfile.update({ where: { id }, data: { active: !edgeProfile.active } });
+    await query('UPDATE edge_profiles SET active = ? WHERE id = ?', [edgeProfile.active ? 0 : 1, id]);
     res.redirect('/admin/kantprofiler');
   } catch (err) {
     next(err);

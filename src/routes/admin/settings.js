@@ -1,5 +1,5 @@
 const express = require('express');
-const prisma = require('../../lib/prisma');
+const { query, mapRow } = require('../../lib/db');
 const { uploadImage, imagePublicUrl } = require('../../middleware/upload');
 const { verifyCsrfAfterUpload } = require('../../middleware/csrf');
 const { invalidateSettingsCache } = require('../../services/catalog');
@@ -9,9 +9,10 @@ const router = express.Router();
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 
 async function getOrCreateSettings() {
-  const existing = await prisma.settings.findFirst();
-  if (existing) return existing;
-  return prisma.settings.create({ data: { vatPercentage: '25.00' } });
+  const rows = await query('SELECT * FROM settings LIMIT 1');
+  if (rows.length > 0) return mapRow(rows[0]);
+  const result = await query('INSERT INTO settings (vat_percentage, updated_at) VALUES (?, NOW())', ['25.00']);
+  return { id: result.insertId, vatPercentage: '25.00', logoUrl: null, accentColor: null };
 }
 
 router.get('/installningar', async (req, res, next) => {
@@ -41,15 +42,16 @@ router.post('/installningar', uploadImage.single('logo'), verifyCsrfAfterUpload,
       });
     }
 
-    await prisma.settings.update({
-      where: { id: settings.id },
-      data: {
-        vatPercentage,
-        accentColor: trimmedAccentColor || null,
-        ...(removeLogo === 'true' ? { logoUrl: null } : {}),
-        ...(req.file ? { logoUrl: imagePublicUrl(req.file.filename) } : {}),
-      },
-    });
+    let logoUrl = settings.logoUrl;
+    if (removeLogo === 'true') logoUrl = null;
+    if (req.file) logoUrl = imagePublicUrl(req.file.filename);
+
+    await query('UPDATE settings SET vat_percentage = ?, accent_color = ?, logo_url = ?, updated_at = NOW() WHERE id = ?', [
+      vatPercentage,
+      trimmedAccentColor || null,
+      logoUrl,
+      settings.id,
+    ]);
     invalidateSettingsCache();
 
     res.redirect('/admin/installningar');

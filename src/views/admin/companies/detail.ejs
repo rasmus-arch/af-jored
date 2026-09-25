@@ -72,7 +72,7 @@
           <tr>
             <td><%= r.material ? r.material.name : 'Alla' %></td>
             <td><%= r.brand ? r.brand.name : 'Alla' %></td>
-            <td><%= r.discountPercent.toFixed(2) %> %</td>
+            <td><%= Number(r.discountPercent).toFixed(2) %> %</td>
             <td>
               <%= r.validFrom ? r.validFrom.toISOString().slice(0,10) : '–' %>
               &ndash;
